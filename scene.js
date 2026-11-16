@@ -11,15 +11,15 @@ const Scene = (() => {
   const ROOM_X = [6, 148], DOOR = [73, 215];
   const SPOTS = [
     {x: 24, y: 147, act: 'Tomando un café', prop: 'mug'}, {x: 40, y: 147, act: 'Tomando un café', prop: 'mug'},
-    {x: 74, y: 146, act: 'Tomando agua', prop: 'mug'}, {x: 122, y: 172, act: 'Jugando a la consola', sofa: 1, prop: 'pad'},
-    {x: 137, y: 172, act: 'Jugando a la consola', sofa: 1, prop: 'pad'}, {x: 152, y: 172, act: 'Mirando la partida', sofa: 1},
+    {x: 74, y: 146, act: 'Tomando agua', prop: 'mug'}, {x: 122, y: 180, act: 'Jugando a la consola', sofa: 1, prop: 'pad'},
+    {x: 137, y: 180, act: 'Jugando a la consola', sofa: 1, prop: 'pad'}, {x: 152, y: 180, act: 'Mirando la partida', sofa: 1},
     {x: 196, y: 142, act: 'Hojeando un libro'}, {x: 58, y: 198, act: 'Estirando las piernas'},
     {x: 178, y: 202, act: 'Regando la planta'}, {x: 98, y: 206, act: 'Dando una vuelta'}, {x: 262, y: 204, act: 'Mirando por la ventana'},
   ];
   const TABLE = [{x: 216, y: 166}, {x: 258, y: 166}];
   let cv, cx, theme = TH.pixel, bg = null, bgKey = '', ags = [], tick = 0, getState, roles, isDay = () => true, still = false;
   const R = (x, y, w, h, f, c = cx) => { c.fillStyle = f; c.fillRect(x, y, w, h); };
-  const seatOf = (k, role) => { const d = DESK[ORDER.indexOf(role)]; return {x: ROOM_X[k] + d[0] + 15, y: d[1] + 19}; };
+  const seatOf = (k, role) => { const d = DESK[ORDER.indexOf(role)]; return {x: ROOM_X[k] + d[0] + 15, y: d[1] + 25}; };
   const zone = p => p.y < 104 ? (p.x < 144 ? 0 : 1) : 2;
   const aisle = y => y < 64 ? 62 : 98;
   function route(from, to) {
@@ -67,28 +67,78 @@ const Scene = (() => {
     if (dark) { r(6, 104, 276, 1, '#8a1326'); for (const [lx, ly] of [[60, 118], [176, 118]]) { r(lx, ly - 6, 2, 6, '#3a3a46'); r(lx - 2, ly, 6, 7, '#e3344b'); r(lx - 1, ly + 1, 4, 5, '#ff8a5c'); } }
   }
 
-  // ---------- personajes ----------
+  // ---------- personajes (sprites de 14x22) ----------
+  const BASE = [
+    '..............', '..............', '..............', '..............',
+    '....kkkkkk....', '...kkkkkkkk...', '...kkkkkkkk...', '...kprkkrpk...', '...kkkkkkkk...', '....kkmmkk....', '.....kkkk.....',
+    '...cccccccc...', '..sbbbbbbbbs..', '.ssbbbbbbbbss.', '.ssbbbbbbbbss.', '.asbbbbbbbbsa.', '..tttttttttt..',
+    '...llllllll...', '...lll..lll...', '...lll..lll...', '..fff....fff..', '..............'];
+  const HAIR = {
+    puntas: {0: '........hh....', 1: '...h..hhhhh.h.', 2: '..hhhhhhhhhhh.', 3: '..hhhhhhhhhhhh', 4: '..hhhhhhhhhhh.', 5: '..hh.hhhh.hh..', 6: '..h........h..'},
+    coleta: {1: '....hhhhhh....', 2: '...hhhhhhhh...', 3: '..hhhhhhhhhh..', 4: '..hhhhhhhhhh..', 5: '..hhh.hh.hhh..', 6: '..hh......hh..', 7: '..hh......hh..', 8: '..hhd....dhh..', 9: '..h........h..', 10: '..h........h..'},
+    melena: {0: '...hh.hh.hh...', 1: '.hhhhhhhhhhhh.', 2: 'hhhhhhhhhhhhhh', 3: 'hhhhhhhhhhhhhh', 4: 'hhhhhhhhhhhhhh', 5: 'hhhh.hhhh.hhhh', 6: 'hhh........hhh', 7: 'hhh........hhh', 8: 'hh..........hh', 9: 'hh..........hh', 10: 'hh..........hh', 11: 'hh..........hh', 12: 'h............h', 13: 'h............h'},
+    rizos: {1: '...h.hh.hh....', 2: '..hhhhhhhhhh..', 3: '.hhhhhhhhhhhh.', 4: '.hhhhhhhhhhhh.', 5: '..hhhhhhhhhh..', 6: '..h.h....h.h..'},
+    corto: {2: '....hhhhhh....', 3: '...hhhhhhhh...', 4: '...hhhhhhhh...', 5: '...h......h...', 6: '...dd....dd...'},
+  };
+  const SPR = {};
+  function sprite(look, up) {
+    const key = look + up; if (SPR[key]) return SPR[key];
+    const g = BASE.map(r => r.split(''));
+    for (const [row, line] of Object.entries(HAIR[look])) line.split('').forEach((ch, x) => { if (ch !== '.') g[row][x] = ch; });
+    if (up) {
+      for (let y = 0; y <= 10; y++) for (let x = 0; x < 14; x++) if ('kprmd'.includes(g[y][x])) g[y][x] = 'h';
+      for (let y = 1; y <= 10; y++) for (let x = 3; x <= 10; x++) if (g[y][x] === '.' && y >= 3) g[y][x] = 'h';
+      if (look === 'coleta') for (let y = 11; y <= 15; y++) { g[y][6] = 'h'; g[y][7] = 'h'; }
+    }
+    const ol = [];
+    for (let y = 0; y < 22; y++) for (let x = -1; x <= 14; x++) {
+      const at = (yy, xx) => yy >= 0 && yy < 22 && xx >= 0 && xx < 14 && g[yy][xx] !== '.';
+      if (!at(y, x) && (at(y - 1, x) || at(y + 1, x) || at(y, x - 1) || at(y, x + 1))) ol.push([x, y]);
+    }
+    g.outline = ol;
+    return (SPR[key] = g);
+  }
+  function palette(a, m) {
+    const dark = theme.id === 'oscuro';
+    return dark
+      ? {h: '#0b0b10', d: '#3a0d16', k: '#f0dccb', p: '#1a0005', r: '#d11a2a', m: '#b4646e', c: '#050507', b: '#15151c', s: '#1d1d27', a: '#f0dccb', t: m.shirt, l: '#0b0b0f', f: '#26262e'}
+      : {h: m.hair, d: '#3b2a20', k: theme.skin, p: '#2a2030', r: '#ffffff', m: '#c98b7a', c: shade(m.shirt), b: m.shirt, s: m.shirt, a: theme.skin, t: shade(m.shirt), l: theme.pants, f: '#1b1a2e'};
+  }
+  function shade(hex) { const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.round(v * .72)); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
   function person(a) {
-    const m = roles[a.role], t = theme, dark = t.id === 'oscuro', x = Math.round(a.x) - 4, moving = a.path.length > 0;
-    let y = Math.round(a.y) - 12; const up = a.face === 'up', step = moving && (tick >> 1) % 2, sit = a.seated && !moving;
-    const hair = dark ? m.hairD : m.hair, body = dark ? '#0e0e13' : m.shirt, eye = dark ? '#e3344b' : '#2a2030';
-    if (!sit) R(x, y + 12, 8, 2, 'rgba(0,0,0,.28)'); else y -= 1;
-    if (!sit) { R(x + 1, y + 10, 2, step ? 1 : 2, t.pants); R(x + 5, y + 10, 2, step ? 2 : 1 + (moving ? 0 : 1), t.pants); }
-    R(x, y + 6, 8, sit ? 5 : 4, body);
-    if (dark) { R(x, y + 6, 8, 1, m.shirt); if (!up) R(x + 3, y + 7, 2, 3, '#8a1326'); }
-    const typing = sit && a.s === 'work' ? (tick % 2) : 0;
-    if (up) { R(x - 1, y + 6 - typing, 1, 3, t.skin); R(x + 8, y + 6 - (sit && a.s === 'work' ? 1 - typing : 0), 1, 3, t.skin); R(x + 1, y, 6, 6, hair); R(x + 2, y + 6, 4, 1, hair); }
-    else { R(x - 1, y + 7, 1, 3, t.skin); R(x + 8, y + 7, 1, 3, t.skin); R(x + 1, y + 2, 6, 4, t.skin); R(x + 1, y, 6, 3, hair); R(x, y + 1, 1, 3, hair); R(x + 7, y + 1, 1, 3, hair); if (tick % 40 > 1) { R(x + 2, y + 4, 1, 1, eye); R(x + 5, y + 4, 1, 1, eye); } }
-    if (dark) { R(x, y, 1, 2, hair); R(x + 7, y, 1, 2, hair); R(x + 2, y - 1, 1, 1, hair); R(x + 5, y - 1, 1, 1, hair); R(x - 1, y + 2, 1, 2, hair); R(x + 8, y + 2, 1, 2, hair); if (!up) R(x + 1, y + 3, 2, 1, hair); }
-    if (!moving && a.prop === 'mug') { R(x + 8, y + 6, 3, 3, '#f4f1ea'); if (tick % 6 < 3) R(x + 9, y + 3, 1, 2, 'rgba(255,255,255,.6)'); }
-    if (!moving && a.prop === 'pad') R(x + 2, y + 9, 4, 2, '#f4f1ea');
-    if (!moving && a.s === 'wait') { const b = dark ? '#e3344b' : '#f6c453'; R(x + 9, y - 9, 7, 8, b); R(x + 9, y - 1, 2, 2, b); R(x + 12, y - 8, 1, 4, '#14101f'); R(x + 12, y - 3, 1, 1, '#14101f'); }
-    if (!moving && a.s === 'queue') { R(x + 9, y - 8, 7, 7, '#6fdc8c'); R(x + 11, y - 5, 1, 1, '#0c2a1b'); R(x + 12, y - 4, 1, 1, '#0c2a1b'); R(x + 13, y - 6, 1, 2, '#0c2a1b'); }
+    const m = roles[a.role], moving = a.path.length > 0, sit = a.seated && !moving, up = a.face === 'up';
+    const g = sprite(m.look, up), pal = palette(a, m), x0 = Math.round(a.x) - 7, y0 = Math.round(a.y) - (sit ? 16 : 21);
+    const step = moving ? (tick >> 1) % 2 : 0, blink = !up && tick % 46 < 2, typing = sit && a.s === 'work' && (a.accion || 'escribiendo').startsWith('escrib');
+    if (!sit) R(x0 + 2, y0 + 20, 10, 2, 'rgba(0,0,0,.3)');
+    const lastRow = sit ? 16 : 21;
+    if (theme.id === 'oscuro') for (const [x, y] of g.outline) if (y <= lastRow) R(x0 + x, y0 + y, 1, 1, '#3c3c4a');
+    for (let y = 0; y <= lastRow; y++) for (let x = 0; x < 14; x++) {
+      let ch = g[y][x]; if (ch === '.') continue;
+      if (blink && (ch === 'p' || ch === 'r')) ch = 'k';
+      if (step && y >= 17 && ((x < 7) === !!(tick >> 2 & 1))) { if (y === 20) continue; }
+      if (typing && ch === 'a' && (x < 7 ? tick % 2 : 1 - tick % 2)) { R(x0 + x, y0 + y - 1, 1, 1, pal.a); continue; }
+      R(x0 + x, y0 + y, 1, 1, pal[ch] || '#f0f');
+    }
+    if (!moving && a.prop === 'mug') { R(x0 + 12, y0 + 13, 3, 3, '#f4f1ea'); if (tick % 6 < 3) R(x0 + 13, y0 + 10, 1, 2, 'rgba(255,255,255,.55)'); }
+    if (!moving && a.prop === 'pad') R(x0 + 5, y0 + 14, 4, 2, theme.id === 'oscuro' ? '#3a3a46' : '#f4f1ea');
+    // burbuja
+    const bx = x0 + 11, by = y0 - 20, dark = theme.id === 'oscuro', acc = dark ? '#e3344b' : '#f6c453';
+    const bubble = (col) => { R(bx, by, 9, 8, col); R(bx + 1, by + 8, 2, 1, col); };
+    if (!moving && a.s === 'wait') { bubble(acc); R(bx + 4, by + 1, 1, 4, '#14101f'); R(bx + 4, by + 6, 1, 1, '#14101f'); }
+    else if (!moving && a.s === 'queue') { bubble('#6fdc8c'); R(bx + 2, by + 4, 1, 1, '#0c2a1b'); R(bx + 3, by + 5, 1, 1, '#0c2a1b'); R(bx + 4, by + 3, 1, 2, '#0c2a1b'); R(bx + 5, by + 2, 1, 2, '#0c2a1b'); }
+    else if (sit && a.s === 'work') {
+      const ac = a.accion || '';
+      if (ac.startsWith('le')) { bubble('#f4f1ea'); R(bx + 1, by + 2, 3, 4, '#6fb3ff'); R(bx + 5, by + 2, 3, 4, '#6fb3ff'); R(bx + 4, by + 2, 1, 4, '#2c2540'); }
+      else if (ac.startsWith('ejec')) { bubble('#0b0b10'); R(bx + 2, by + 2, 1, 1, '#6fdc8c'); R(bx + 3, by + 3, 1, 1, '#6fdc8c'); R(bx + 2, by + 4, 1, 1, '#6fdc8c'); if (tick % 4 < 2) R(bx + 5, by + 4, 2, 1, '#6fdc8c'); }
+      else if (ac.startsWith('pens')) { bubble('#f4f1ea'); for (let i = 0; i < 3; i++) if ((tick >> 1) % 4 > i) R(bx + 2 + i * 2, by + 4, 1, 1, '#2c2540'); }
+    }
+    // nombre y barra de progreso
     cx.font = 'bold 5px ui-monospace,Menlo,monospace'; cx.textAlign = 'center'; cx.textBaseline = 'alphabetic';
-    const w = cx.measureText(m.nombre).width + 4; R(Math.round(a.x - w / 2), y - 9, Math.round(w), 7, t.tag);
-    R(Math.round(a.x - w / 2), y - 2, Math.round(w), 1, REPOCOLORS[a.k]);
-    if (a.s === 'work') R(Math.round(a.x - w / 2), y - 9, 1, 7, '#6fb3ff');
-    cx.fillStyle = t.text; cx.fillText(m.nombre, Math.round(a.x), y - 3.5); cx.textAlign = 'left';
+    const ty = y0 - (a.s === 'work' && sit ? 3 : 2), w = cx.measureText(m.nombre).width + 4, tx = Math.round(a.x - w / 2);
+    R(tx, ty - 7, Math.round(w), 7, theme.tag); R(tx, ty - 1, Math.round(w), 1, REPOCOLORS[a.k]);
+    cx.fillStyle = theme.text; cx.fillText(m.nombre, Math.round(a.x), ty - 1.8); cx.textAlign = 'left';
+    const pm = a.s === 'work' && (a.paso || '').match(/(\d+)\s*\/\s*(\d+)/);
+    if (pm) { R(tx, ty, Math.round(w), 2, 'rgba(0,0,0,.5)'); R(tx, ty, Math.round(w * Math.min(1, pm[1] / pm[2])), 2, dark ? '#e3344b' : '#6fdc8c'); }
   }
   function dynamic() {
     const t = theme, dark = t.id === 'oscuro';
@@ -117,7 +167,7 @@ const Scene = (() => {
     st.forEach((team, k) => team.forEach(s => {
       let a = ags.find(o => o.k === k && o.role === s.role);
       if (!a) { a = {k, role: s.role, x: 0, y: 0, path: [], face: 'down', spot: null, until: 0, goal: null}; ags.push(a); }
-      a.s = s.s; if (a.s !== 'sleep') a.spot = null;
+      a.s = s.s; a.accion = s.accion || ''; a.paso = s.paso || ''; if (a.s !== 'sleep') a.spot = null;
       const tg = target(a); a.wantSeat = tg.seated; a.prop = tg.spot ? tg.spot.prop : null;
       if (!a.goal || a.goal.x !== tg.pos.x || a.goal.y !== tg.pos.y) {
         a.goal = {x: tg.pos.x, y: tg.pos.y};
@@ -138,7 +188,7 @@ const Scene = (() => {
     cx.setTransform(1, 0, 0, 1, 0, 0); cx.drawImage(bg, 0, 0); cx.setTransform(SC, 0, 0, SC, 0, 0);
     dynamic(); sofaBack();
     [...ags].sort((a, b) => a.y - b.y).forEach(person);
-    if (ags.some(a => a.spot && a.spot.sofa && !a.path.length)) sofaFront(); else { sofaFront(); }
+    sofaFront();
   }
   let REPONAMES = [], REPOCOLORS = [];
   return {
@@ -153,7 +203,7 @@ const Scene = (() => {
     refresh() { if (cx) { sync(false); frame(); } },
     pick(clientX, clientY) {
       const r = cv.getBoundingClientRect(), x = (clientX - r.left) / r.width * W, y = (clientY - r.top) / r.height * H;
-      let best = null, bd = 18; for (const a of ags) { const d = Math.hypot(a.x - x, a.y - 6 - y); if (d < bd) { bd = d; best = a; } }
+      let best = null, bd = 16; for (const a of ags) { const d = Math.hypot(a.x - x, a.y - 10 - y); if (d < bd) { bd = d; best = a; } }
       return best && {k: best.k, role: best.role};
     },
     activity(k, role) { const a = ags.find(o => o.k === k && o.role === role); if (!a) return ''; if (a.path.length) return 'Caminando por la oficina'; return a.spot ? a.spot.act : ''; },

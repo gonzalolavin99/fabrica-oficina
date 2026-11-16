@@ -91,3 +91,6 @@ a.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(-
 button.who{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:0;border-top:1px dashed var(--line);border-radius:0;background:none;padding:10px 2px}
 button.who small{margin-top:2px}
 .dot{width:10px;height:10px;flex:none;margin-top:6px;border-radius:50%}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:6px}
+.filters select{padding:8px;font-size:15px}
+.p-alta{color:var(--bad)}.p-media{color:var(--accent)}.p-baja{color:var(--ok)}

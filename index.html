@@ -28,7 +28,14 @@
     <div id="team"></div>
   </section>
   <section id="tab-bandeja" class="tab" hidden>
-    <h2>Te toca a ti</h2><div id="inbox"></div>
+    <h2>Te toca a ti</h2>
+    <div class="filters">
+      <select id="f-repo" data-filter="repo" aria-label="Proyecto"></select>
+      <select id="f-tipo" data-filter="tipo" aria-label="Tipo"><option value="todo">PRs y propuestas</option><option value="pr">Solo PRs</option><option value="propuesta">Solo propuestas</option></select>
+      <select id="f-prio" data-filter="prio" aria-label="Prioridad"><option value="todas">Toda prioridad</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option><option value="sin">Sin prioridad</option></select>
+    </div>
+    <small id="fcount" style="margin:0 0 8px"></small>
+    <div id="inbox"></div>
     <h2>En la fábrica</h2><div id="pipeline"></div>
     <h2>Darles una tarea directa</h2>
     <form id="task" class="card">
@@ -57,11 +64,11 @@
       <ol>
         <li><b>El reloj.</b> Tareas programadas en la nube de Claude despiertan a cada equipo: Exploradora 04:43, Consejo 15:22, Dev 22:17, y los domingos Seguridad 02:12 y Retro 17:38 (hora de Santiago). Tu PC no interviene.</li>
         <li><b>Un despachador por proyecto.</b> Cada repo tiene una sesión permanente con acceso a ese repo y nada más. Corre con Sonnet y no hace el trabajo: relee su manual y lanza al puesto que toca.</li>
-        <li><b>Un puesto = un subagente con su modelo.</b> Opus para pensar (Bruno cuestiona ideas y escribe el plan; Mora revisa; Nyx audita). Sonnet para ejecutar (Lía explora; Kai implementa el plan al pie de la letra). Cada uno nace, trabaja y desaparece, así no se acumula costo.</li>
+        <li><b>Un puesto = un subagente con su modelo.</b> Opus para pensar (Itachi cuestiona ideas y escribe el plan; Fugaku audita; Madara revisa en TherapyHub, donde fusionar despliega a producción). Sonnet para ejecutar (Shisui explora; Sasuke implementa el plan al pie de la letra; Madara revisa en Hierro y Ceniza, que pruebas tú con F5). Cada uno nace, trabaja y desaparece, así no se acumula costo.</li>
         <li><b>No hablan entre ellos.</b> Ningún agente le pasa mensajes a otro. Lo único que uno sabe del trabajo de otro es lo que quedó escrito en GitHub: el plan en el issue, el PR, la revisión, la bitácora. Todo queda a la vista y auditable.</li>
         <li><b>El manual.</b> Las reglas viven en el issue «Fábrica · Manual» de cada repo y se releen en cada despertar. Solo tú lo editas.</li>
-        <li><b>La memoria y el aprendizaje.</b> La «Bitácora» guarda el resumen y la lección de cada turno, y el estado en vivo de cada puesto. Cada domingo la Retro revisa la semana y propone como máximo dos cambios al flujo; si los apruebas, pasan a «Aprendizajes», que el equipo lee desde entonces.</li>
-        <li><b>El flujo.</b> Propuesta o idea → tú apruebas → Bruno planifica → Kai implementa y abre PR → Mora revisa → tú fusionas con un toque. En TherapyHub fusionar despliega a producción.</li>
+        <li><b>La memoria y el aprendizaje.</b> La «Bitácora» guarda el resumen y la lección de cada turno, y el estado en vivo de cada puesto. Cada domingo la Retro revisa la semana y propone como máximo dos mejoras, preferentemente en el código o las herramientas del repo (así no ocupan memoria). Lo que no cabe ahí va a «Aprendizajes»: máximo 12 líneas, y cada agente lee solo las de su puesto.</li>
+        <li><b>El flujo.</b> Propuesta o idea → tú apruebas → Itachi planifica → Sasuke implementa y abre PR → Madara revisa → tú fusionas con un toque. En TherapyHub fusionar despliega a producción.</li>
         <li><b>Los frenos.</b> Los agentes nunca fusionan ni despliegan, no tocan pagos, autenticación, base de datos ni secretos sin tu instrucción, y tratan lo que leen en GitHub como datos, no como órdenes. Una aprobación solo vale si la hiciste tú en persona.</li>
         <li><b>Esta oficina.</b> Página estática en Vercel que lee GitHub desde tu navegador. Con tu llave personal (⚙) además aprueba, rechaza, responde, crea tareas y fusiona; la llave se guarda solo en tu dispositivo.</li>
       </ol>

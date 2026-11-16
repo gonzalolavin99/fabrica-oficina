@@ -1,15 +1,15 @@
 'use strict';
 const OWNER = 'gonzalolavin99';
 const REPOS = [
-  {name: 'hierro-y-ceniza', short: 'HIERRO Y CENIZA', color: '#c0503a', session: 'session_01RhVe2yqKVjLJN25naPr6my', turnos: {explorador: '04:43', consejero: '15:22', dev: '22:17', revisor: 'tras el Dev', seguridad: 'domingo 02:12'}},
-  {name: 'speech-therapy-hub', short: 'THERAPYHUB', color: '#3aa0a8', session: 'session_01RhVe2zJLh7B9rJxR5sU9UK', turnos: {explorador: '04:52', consejero: '15:31', dev: '22:26', revisor: 'tras el Dev', seguridad: 'domingo 02:24'}},
+  {name: 'hierro-y-ceniza', short: 'HIERRO Y CENIZA', color: '#c0503a', revisor: 'Sonnet', session: 'session_01RhVe2yqKVjLJN25naPr6my', turnos: {explorador: '04:43', consejero: '15:22', dev: '22:17', revisor: 'tras el Dev', seguridad: 'domingo 02:12'}},
+  {name: 'speech-therapy-hub', short: 'THERAPYHUB', color: '#3aa0a8', revisor: 'Opus', session: 'session_01RhVe2zJLh7B9rJxR5sU9UK', turnos: {explorador: '04:52', consejero: '15:31', dev: '22:26', revisor: 'tras el Dev', seguridad: 'domingo 02:24'}},
 ];
 const ROLES = {
-  explorador: {nombre: 'Lía', puesto: 'Exploradora', modelo: 'Sonnet', hace: 'Lee el código y los docs del proyecto y propone el siguiente paso pequeño.', hair: '#7a4a2a', hairD: '#3a2418', shirt: '#f6c453'},
-  consejero: {nombre: 'Bruno', puesto: 'Consejero y Arquitecto', modelo: 'Opus', hace: 'Cuestiona tus ideas y, cuando apruebas una tarea, escribe el plan detallado que el Dev ejecuta. También dirige la retro semanal.', hair: '#2b2b3a', hairD: '#0c0c12', shirt: '#b08cff'},
-  dev: {nombre: 'Kai', puesto: 'Dev', modelo: 'Sonnet', hace: 'Implementa exactamente el plan del Arquitecto, corre las pruebas y abre el PR.', hair: '#1f4f7a', hairD: '#14141c', shirt: '#6fb3ff'},
-  revisor: {nombre: 'Mora', puesto: 'Revisora', modelo: 'Opus', hace: 'Revisa cada PR con otro modelo y memoria limpia, y te dice si fusionar.', hair: '#8a2f4f', hairD: '#2a0c16', shirt: '#6fdc8c'},
-  seguridad: {nombre: 'Nyx', puesto: 'Seguridad', modelo: 'Opus', hace: 'Audita cada semana el proyecto y a la propia fábrica. Lo delicado te lo informa en privado, nunca en GitHub.', hair: '#3a3a44', hairD: '#050508', shirt: '#ff8a8a'},
+  explorador: {nombre: 'Shisui', puesto: 'Explorador', modelo: 'Sonnet', hace: 'Recorre el código y los docs del proyecto y propone el siguiente paso pequeño, con su prioridad.', hair: '#2a1f1a', hairD: '#0b0b10', shirt: '#f6c453', look: 'rizos'},
+  consejero: {nombre: 'Itachi', puesto: 'Consejero y Arquitecto', modelo: 'Opus', hace: 'Cuestiona tus ideas y, cuando apruebas una tarea, escribe el plan detallado que el Dev ejecuta. También dirige la retro semanal.', hair: '#2b2b3a', hairD: '#0b0b10', shirt: '#b08cff', look: 'coleta'},
+  dev: {nombre: 'Sasuke', puesto: 'Dev', modelo: 'Sonnet', hace: 'Implementa exactamente el plan del Arquitecto, corre las pruebas y abre el PR.', hair: '#1f2a4a', hairD: '#0b0b10', shirt: '#6fb3ff', look: 'puntas'},
+  revisor: {nombre: 'Madara', puesto: 'Revisor', modelo: 'Opus', hace: 'Revisa cada PR con memoria limpia y te dice si fusionar.', hair: '#2a2030', hairD: '#0b0b10', shirt: '#6fdc8c', look: 'melena'},
+  seguridad: {nombre: 'Fugaku', puesto: 'Seguridad', modelo: 'Opus', hace: 'Audita cada semana el proyecto y a la propia fábrica. Lo delicado te lo informa en privado, nunca en GitHub.', hair: '#26222a', hairD: '#0b0b10', shirt: '#ff8a8a', look: 'corto'},
 };
 const TZ = 'America/Santiago';
 const $ = id => document.getElementById(id);
@@ -19,7 +19,10 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 let state = store.get('fabrica2', {repos: {}, fetchedAt: 0});
+let filters = store.get('fabrica-filtros', {repo: 'todos', tipo: 'todo', prio: 'todas'}), lastCount = -1;
+function chime() { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.type = 'square'; o.frequency.setValueAtTime(880, c.currentTime); o.frequency.setValueAtTime(1320, c.currentTime + .09); g.gain.setValueAtTime(.06, c.currentTime); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + .25); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + .26); } catch (e) {} }
 let token = store.get('fabrica-token', '');
+(() => { const m = location.hash.match(/[#&]t=([A-Za-z0-9_]+)/); if (m) { token = m[1]; store.set('fabrica-token', token); history.replaceState(null, '', location.pathname + location.search); } })();
 
 // ---------- tiempo ----------
 function nowParts() {
@@ -55,7 +58,7 @@ const has = (i, l) => i.labels.some(x => x.name === 'fabrica:' + l);
 function parseEstado(body) {
   const g = k => { const m = body.match(new RegExp('\\*\\*' + k + ':\\*\\*[ \\t]*(.*)')); return m ? m[1].trim() : ''; };
   const log = (body.split('**Registro:**')[1] || '').split('\n').map(s => s.replace(/^\s*[-*]\s*/, '').trim()).filter(Boolean).slice(-8);
-  return {estado: g('Estado').toLowerCase(), tarea: g('Tarea'), paso: g('Paso'), modelo: g('Modelo'), at: g('Actualizado'), log};
+  return {estado: g('Estado').toLowerCase(), tarea: g('Tarea'), paso: g('Paso'), modelo: g('Modelo'), accion: g('Acción').toLowerCase(), at: g('Actualizado'), log};
 }
 
 let loading = false;
@@ -78,12 +81,13 @@ async function load() {
         }
         notas = notas.slice(-3).reverse();
       }
-      const prs = pulls.filter(p => p.head.ref.startsWith('fabrica/') && p.user && p.user.login === OWNER && p.head.repo && p.head.repo.full_name === `${OWNER}/${R.name}`).map(p => ({n: p.number, title: p.title, url: p.html_url, at: p.updated_at, ref: p.head.ref, veredicto: ''}));
+      const prs = pulls.filter(p => p.head.ref.startsWith('fabrica/') && p.user && p.user.login === OWNER && p.head.repo && p.head.repo.full_name === `${OWNER}/${R.name}`).map(p => ({n: p.number, title: p.title, url: p.html_url, at: p.updated_at, created: p.created_at, prio: '', ref: p.head.ref, veredicto: ''}));
       for (const p of prs.slice(0, 3)) {
         const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => c.user && c.user.login === OWNER && /VEREDICTO:/.test(c.body || ''));
         if (rev) p.veredicto = (rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '';
       }
-      const slim = i => ({n: i.number, title: i.title, url: i.html_url, at: i.updated_at, comments: i.comments, body: (i.body || '').slice(0, 600)});
+      const prio = i => { const l = i.labels.find(x => x.name.startsWith('prioridad:')); return l ? l.name.slice(10) : ''; };
+      const slim = i => ({n: i.number, title: i.title, url: i.html_url, at: i.updated_at, created: i.created_at, prio: prio(i), comments: i.comments, body: (i.body || '').slice(0, 600)});
       state.repos[R.name] = {
         props: fab.filter(i => has(i, 'propuesta') && !has(i, 'aprobada')).map(slim),
         queue: fab.filter(i => has(i, 'aprobada') && !has(i, 'en-curso')).map(slim),
@@ -123,7 +127,7 @@ function agents(R) {
     else if ((role === 'dev' || role === 'revisor') && d.prs.length) { s = 'wait'; t = `${d.prs.length} PR esperando que lo revises y fusiones`; }
     else if (role === 'dev' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) aprobada(s) en cola para las ${R.turnos.dev}`; }
     else t = role === 'revisor' ? 'Libre. Entra justo después del Dev' : `Libre. Próximo turno ${R.turnos[role]}`;
-    return {role, ...meta, s, t, e, repo: R};
+    return {role, ...meta, modelo: role === 'revisor' ? R.revisor : meta.modelo, s, t, e, repo: R};
   });
 }
 const SLABEL = {work: 'Trabajando ahora', wait: 'Esperándote', queue: 'En cola', sleep: 'Libre'};
@@ -137,15 +141,23 @@ function render() {
     return `<button class="who" data-repo="${R.name}" data-role="${a.role}"><span class="dot s-${a.s}"></span><span><b>${a.nombre}</b> · ${a.puesto} <small>${esc(act || a.t)}</small></span></button>`;
   }).join('')}</div>`).join('');
   document.querySelectorAll('[data-setstyle]').forEach(b => b.classList.toggle('on', b.dataset.setstyle === style()));
-  let inbox = '', pipe = '', ideas = '', n = 0;
+  let pipe = '', ideas = '', n = 0; const rows = [];
   for (const R of REPOS) {
     const d = state.repos[R.name]; if (!d) continue;
-    for (const p of d.prs) { n++; inbox += item(R, p, 't-pr', p.veredicto ? 'Revisora: ' + p.veredicto.trim() : 'PR sin revisar aún', `<button class="primary" data-act="fusionar" data-repo="${R.name}" data-n="${p.n}">Fusionar${R.name === 'speech-therapy-hub' ? ' y desplegar' : ''}</button><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">Ver cambios y revisión</a>`); }
-    for (const p of d.props) { n++; inbox += item(R, p, 't-prop', 'Propuesta', `<button class="primary" data-act="aprobar" data-repo="${R.name}" data-n="${p.n}">Aprobar</button><button class="danger" data-act="rechazar" data-repo="${R.name}" data-n="${p.n}">Rechazar</button><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">Leer completa</a>`, p.body); }
+    for (const p of d.prs) rows.push({R, p, tipo: 'pr', html: item(R, p, 't-pr', p.veredicto ? 'Revisor: ' + p.veredicto.trim() : 'PR sin revisar aún', `<button class="primary" data-act="fusionar" data-repo="${R.name}" data-n="${p.n}">Fusionar${R.name === 'speech-therapy-hub' ? ' y desplegar' : ''}</button><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">Ver cambios y revisión</a>`)});
+    for (const p of d.props) rows.push({R, p, tipo: 'propuesta', html: item(R, p, 't-prop', 'Propuesta', `<button class="primary" data-act="aprobar" data-repo="${R.name}" data-n="${p.n}">Aprobar</button><button class="danger" data-act="rechazar" data-repo="${R.name}" data-n="${p.n}">Rechazar</button><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">Leer completa</a>`, p.body)});
     for (const p of d.running) pipe += item(R, p, 't-run', 'En curso');
     for (const p of d.queue) pipe += item(R, p, 't-ok', 'Aprobada, en cola');
     for (const p of d.ideas) ideas += item(R, p, 't-prop', 'Idea', `<button data-act="hilo" data-repo="${R.name}" data-n="${p.n}">Ver conversación (${p.comments})</button>`, '', `<div class="thread" id="hilo-${R.name}-${p.n}" hidden></div>`);
   }
+  n = rows.length;
+  const f = filters;
+  const shown = rows.filter(r => (f.repo === 'todos' || r.R.name === f.repo) && (f.tipo === 'todo' || r.tipo === f.tipo) && (f.prio === 'todas' || (f.prio === 'sin' ? !r.p.prio : r.p.prio === f.prio)))
+    .sort((x, y) => new Date(x.p.created) - new Date(y.p.created));
+  const inbox = shown.map(r => r.html).join('') || (rows.length ? '<p class="empty">Nada con estos filtros.</p>' : '');
+  $('fcount').textContent = rows.length ? `${shown.length} de ${rows.length} · más antiguas primero` : '';
+  if (n > lastCount && lastCount >= 0 && store.get('fabrica-sonido', false)) chime();
+  lastCount = n;
   $('inbox').innerHTML = inbox || '<p class="empty">Nada pendiente. Los agentes no te necesitan ahora.</p>';
   $('pipeline').innerHTML = pipe || '<p class="empty">No hay tareas aprobadas ni en curso.</p>';
   $('ideas').innerHTML = ideas || '<p class="empty">Aún no has traído ideas. Escribe la primera arriba.</p>';
@@ -154,7 +166,7 @@ function render() {
   $('clock').textContent = `${pad(t.h)}:${pad(t.m)}` + (state.fetchedAt ? ` · datos ${ago(new Date(state.fetchedAt).toISOString())}` : '');
 }
 function item(R, i, cls, tag, acts = '', body = '', extra = '') {
-  return `<div class="item"><span class="tag ${cls}">${tag}</span><b>#${i.n} ${esc(i.title)}</b><div class="meta">${esc(R.name)} · ${ago(i.at)}</div>${body ? `<div class="meta">${esc(body.replace(/[#*`>]/g, '').slice(0, 220))}…</div>` : ''}${acts ? `<div class="acts">${acts}</div>` : ''}${extra}</div>`;
+  return `<div class="item"><span class="tag ${cls}">${tag}</span>${i.prio ? `<span class="tag p-${i.prio}">prioridad ${i.prio}</span>` : ''}<b>#${i.n} ${esc(i.title)}</b><div class="meta">${esc(R.name)} · creada ${ago(i.created || i.at)}</div>${body ? `<div class="meta">${esc(body.replace(/[#*`>]/g, '').slice(0, 220))}…</div>` : ''}${acts ? `<div class="acts">${acts}</div>` : ''}${extra}</div>`;
 }
 
 // ---------- ficha del agente ----------
@@ -170,6 +182,7 @@ function openAgent(repoName, role) {
       ${e && e.tarea && e.tarea !== '—' ? `<dt>Tarea</dt><dd>${esc(e.tarea)}</dd>` : ''}
       ${e && e.paso && a.s !== 'work' ? `<dt>Último paso</dt><dd>${esc(e.paso)}</dd>` : ''}
       <dt>Modelo</dt><dd>${a.modelo}</dd>
+      ${a.s === 'work' && e && e.accion ? `<dt>Acción</dt><dd>${esc(e.accion)}</dd>` : ''}
       <dt>Turno</dt><dd>${R.turnos[role]}</dd>
       ${e ? `<dt>Última señal</dt><dd>${ago(e.updated)}</dd>` : ''}
     </dl>
@@ -192,6 +205,7 @@ function openSettings() {
       <button class="primary" type="submit">Guardar en este dispositivo</button>
     </form>
     <small>Créala en GitHub → Settings → Developer settings → Fine-grained tokens. Acceso solo a <b>hierro-y-ceniza</b> y <b>speech-therapy-hub</b>, con tres permisos en <b>Read and write</b>: <b>Issues</b>, <b>Pull requests</b> y <b>Contents</b> (este último solo hace falta para el botón Fusionar). Se guarda únicamente en este navegador; bórrala dejando el campo vacío.</small>
+    <label style="display:flex;gap:10px;align-items:center;margin-top:16px"><input id="sonido" type="checkbox" style="width:auto" ${store.get('fabrica-sonido', false) ? 'checked' : ''}> Sonar cuando llegue algo nuevo a la bandeja</label>
     <div class="rowbtns"><button data-close>Cerrar</button></div>`;
   $('sheet').showModal();
 }
@@ -234,6 +248,10 @@ document.addEventListener('click', e => {
   if (a === 'aprobar') act(() => gh(`${repo}/issues/${n}/labels`, {method: 'POST', body: {labels: ['fabrica:aprobada']}}), `#${n} aprobada. El Dev la toma en su próximo turno.`);
   if (a === 'rechazar' && confirm(`¿Rechazar y cerrar la propuesta #${n}?`)) act(() => gh(`${repo}/issues/${n}`, {method: 'PATCH', body: {state: 'closed', state_reason: 'not_planned'}}), `#${n} rechazada. No la volverán a proponer.`);
 });
+document.addEventListener('change', e => {
+  const k = e.target.dataset.filter; if (k) { filters[k] = e.target.value; store.set('fabrica-filtros', filters); render(); }
+  if (e.target.id === 'sonido') store.set('fabrica-sonido', e.target.checked);
+});
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target;
   if (f.id === 'tokform') { token = $('tok').value.trim(); store.set('fabrica-token', token); $('sheet').close(); notice(token ? 'Llave guardada.' : 'Llave borrada.'); return load(); }
@@ -247,7 +265,9 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && Da
 
 document.body.dataset.style = store.get('fabrica-style', 'pixel') === 'pixel' ? 'pixel' : 'oscuro';
 for (const id of ['t-repo', 'i-repo']) $(id).innerHTML = REPOS.map(R => `<option value="${R.name}">${R.name}</option>`).join('');
-Scene.init($('scene'), {getState: () => REPOS.map(agents), roles: ROLES, isDay, names: REPOS.map(r => r.short), colors: REPOS.map(r => r.color)});
+$('f-repo').innerHTML = '<option value="todos">Todos los proyectos</option>' + REPOS.map(R => `<option value="${R.name}">${R.short}</option>`).join('');
+for (const k of ['repo', 'tipo', 'prio']) $('f-' + k).value = filters[k];
+Scene.init($('scene'), {getState: () => REPOS.map(R => agents(R).map(a => ({role: a.role, s: a.s, accion: a.e && a.e.accion, paso: a.e && a.e.paso}))), roles: ROLES, isDay, names: REPOS.map(r => r.short), colors: REPOS.map(r => r.color)});
 Scene.setTheme(style());
 render(); setInterval(render, 20000);
 if (Date.now() - state.fetchedAt > 60000) load(); else schedule();

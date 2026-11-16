@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Fábrica de agentes · Cómo funciona</title>
+<style>
+@page{size:A4;margin:16mm 15mm}
+*{box-sizing:border-box}
+body{font:10.5pt/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d1b26;margin:0}
+h1{font-size:22pt;margin:0 0 2mm;letter-spacing:-.3px}
+h1 span{color:#c2182f}
+.sub{color:#5d5868;margin:0 0 6mm;font-size:11pt}
+h2{font-size:13pt;margin:7mm 0 2.5mm;padding-bottom:1.2mm;border-bottom:2px solid #c2182f;break-after:avoid}
+h3{font-size:11pt;margin:4mm 0 1.5mm;break-after:avoid}
+p{margin:0 0 2.5mm}
+ul,ol{margin:0 0 3mm;padding-left:5mm}
+li{margin-bottom:1.2mm}
+table{width:100%;border-collapse:collapse;margin:0 0 4mm;font-size:9.5pt;break-inside:avoid}
+th,td{text-align:left;vertical-align:top;padding:1.8mm 2mm;border-bottom:1px solid #e3e0ea}
+th{background:#f4f2f7;font-weight:600}
+code{font:9pt ui-monospace,Menlo,Consolas,monospace;background:#f4f2f7;padding:0 1mm;border-radius:1mm}
+.box{border:1.5px solid #e3e0ea;border-radius:2mm;padding:3.5mm 4mm;margin:0 0 4mm;break-inside:avoid}
+.key{border-color:#c2182f;background:#fff6f7}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+.diagram{width:100%;margin:2mm 0 4mm}
+.small{font-size:9pt;color:#5d5868}
+.pb{break-before:page}
+</style>
+</head>
+<body>
+
+<h1>Fábrica de agentes <span>· cómo funciona</span></h1>
+<p class="sub">Resumen para entenderla y explicarla. Estado al 16 de noviembre de 2026.</p>
+
+<div class="box key">
+<b>En una frase:</b> un equipo de agentes de IA (sesiones de Claude Code en la nube) trabaja cada día sobre tus proyectos en GitHub: propone mejoras, cuestiona tus ideas, planifica, programa y revisa. Tú apruebas y fusionas desde una oficina web en el celular o el PC.
+</div>
+
+<h2>1. Las piezas</h2>
+<svg class="diagram" viewBox="0 0 720 230" font-family="system-ui,sans-serif" font-size="12">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#5d5868"/></marker></defs>
+  <rect x="10" y="20" width="150" height="62" rx="8" fill="#f4f2f7" stroke="#bdb7c9"/><text x="85" y="45" text-anchor="middle" font-weight="700">Reloj</text><text x="85" y="63" text-anchor="middle" fill="#5d5868">tareas programadas</text>
+  <rect x="210" y="10" width="200" height="82" rx="8" fill="#fff6f7" stroke="#c2182f"/><text x="310" y="35" text-anchor="middle" font-weight="700">Despachador (Sonnet)</text><text x="310" y="53" text-anchor="middle" fill="#5d5868">1 sesión permanente</text><text x="310" y="70" text-anchor="middle" fill="#5d5868">por proyecto</text>
+  <rect x="210" y="130" width="200" height="88" rx="8" fill="#f4f2f7" stroke="#bdb7c9"/><text x="310" y="153" text-anchor="middle" font-weight="700">Puestos (subagentes)</text><text x="310" y="171" text-anchor="middle" fill="#5d5868">nacen, trabajan y</text><text x="310" y="188" text-anchor="middle" fill="#5d5868">desaparecen; cada uno</text><text x="310" y="205" text-anchor="middle" fill="#5d5868">con su modelo</text>
+  <rect x="470" y="40" width="160" height="140" rx="8" fill="#fff" stroke="#1d1b26" stroke-width="1.5"/><text x="550" y="66" text-anchor="middle" font-weight="700">GitHub</text><text x="550" y="88" text-anchor="middle" fill="#5d5868">issues = tareas</text><text x="550" y="106" text-anchor="middle" fill="#5d5868">etiquetas = estados</text><text x="550" y="124" text-anchor="middle" fill="#5d5868">PRs = entregas</text><text x="550" y="142" text-anchor="middle" fill="#5d5868">bitácora = memoria</text><text x="550" y="160" text-anchor="middle" fill="#5d5868">manual = reglas</text>
+  <rect x="660" y="60" width="54" height="100" rx="8" fill="#f4f2f7" stroke="#bdb7c9"/><text x="687" y="100" text-anchor="middle" font-weight="700">Tú</text><text x="687" y="118" text-anchor="middle" fill="#5d5868" font-size="10">oficina</text><text x="687" y="132" text-anchor="middle" fill="#5d5868" font-size="10">web</text>
+  <line x1="160" y1="51" x2="207" y2="51" stroke="#5d5868" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="310" y1="92" x2="310" y2="127" stroke="#5d5868" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="410" y1="174" x2="467" y2="150" stroke="#5d5868" stroke-width="1.5" marker-end="url(#ar)"/><text x="436" y="178" fill="#5d5868" font-size="10">escriben</text>
+  <line x1="410" y1="51" x2="467" y2="70" stroke="#5d5868" stroke-width="1.5" marker-end="url(#ar)"/><text x="420" y="50" fill="#5d5868" font-size="10">lee manual</text>
+  <line x1="657" y1="110" x2="633" y2="110" stroke="#5d5868" stroke-width="1.5" marker-end="url(#ar)"/><line x1="633" y1="126" x2="657" y2="126" stroke="#5d5868" stroke-width="1.5" marker-end="url(#ar)"/>
+</svg>
+<table>
+<tr><th style="width:24%">Pieza</th><th>Qué es y dónde vive</th></tr>
+<tr><td><b>Reloj</b></td><td>Tareas programadas de Claude Code en la nube. Despiertan a cada equipo a su hora. Tu PC no interviene: puede estar apagado.</td></tr>
+<tr><td><b>Despachador</b></td><td>Una sesión de Claude Code permanente por proyecto, con acceso solo a ese repo. Corre con Sonnet (barato). No hace el trabajo: relee su manual y lanza al puesto que toca. Es también a quien le hablas «en vivo».</td></tr>
+<tr><td><b>Puestos</b></td><td>Subagentes que el despachador crea para cada turno, con el modelo que corresponde. Al terminar desaparecen, así la conversación no crece ni encarece.</td></tr>
+<tr><td><b>GitHub</b></td><td>La oficina real. Todo lo que hacen queda escrito y auditable: propuestas, ideas, planes, PRs, revisiones y bitácora.</td></tr>
+<tr><td><b>Oficina web</b></td><td>Página estática (PWA) en Vercel, repo <code>fabrica-oficina</code>. Lee GitHub desde tu navegador y, con tu llave guardada en el dispositivo, aprueba, rechaza, responde, crea tareas y fusiona. No tiene servidor ni base de datos propia.</td></tr>
+</table>
+
+<h2>2. El equipo</h2>
+<table>
+<tr><th>Nombre</th><th>Puesto</th><th>Modelo</th><th>Cuándo</th><th>Qué entrega</th></tr>
+<tr><td>Shisui</td><td>Explorador</td><td>Sonnet</td><td>Diario 04:43</td><td>Máx. 2 propuestas por día, con evidencia y prioridad</td></tr>
+<tr><td>Itachi</td><td>Consejero y Arquitecto</td><td>Opus</td><td>Diario 15:22 (ideas) y antes de cada Dev (plan)</td><td>Preguntas y objeciones a tus ideas; plan detallado de cada tarea aprobada; retro semanal</td></tr>
+<tr><td>Sasuke</td><td>Dev</td><td>Sonnet</td><td>Diario 22:17</td><td>Implementa el plan al pie de la letra y abre un PR</td></tr>
+<tr><td>Madara</td><td>Revisor</td><td>Sonnet en Hierro y Ceniza · Opus en TherapyHub</td><td>Justo después del Dev</td><td>Veredicto del PR: listo, con observaciones o no fusionar</td></tr>
+<tr><td>Fugaku</td><td>Seguridad</td><td>Opus</td><td>Domingo 02:12</td><td>Auditoría del proyecto y de la fábrica; lo explotable, solo en privado</td></tr>
+</table>
+<p class="small">Horarios de Hierro y Ceniza (Santiago). TherapyHub corre 9 minutos después. Regla de modelos: Opus donde se piensa o donde un error es caro; Sonnet donde se ejecuta algo ya decidido.</p>
+
+<h2>3. El flujo de una tarea</h2>
+<ol>
+<li><b>Nace:</b> Shisui la propone, o tú traes una idea en la «Mesa del CEO» e Itachi la cuestiona hasta convertirla en propuestas, o tú creas una tarea directa.</li>
+<li><b>Decides:</b> en la Bandeja (ordenada de la más antigua a la más nueva, con filtros) tocas <i>Aprobar</i> o <i>Rechazar</i>. Una aprobación solo vale si la hiciste tú en persona.</li>
+<li><b>Plan:</b> en el turno Dev, Itachi escribe en el issue un plan paso a paso.</li>
+<li><b>Código:</b> Sasuke lo implementa en una rama, corre las pruebas y abre el PR.</li>
+<li><b>Revisión:</b> Madara lee el diff sin saber nada más que lo escrito y deja su veredicto.</li>
+<li><b>Fusión:</b> tú tocas <i>Fusionar</i>. En TherapyHub eso despliega a producción en Vercel. En Hierro y Ceniza lo pruebas con F5 en Godot.</li>
+</ol>
+
+<h2 class="pb">4. Reglas que lo hacen seguro</h2>
+<div class="grid">
+<div class="box"><h3 style="margin-top:0">Lo que los agentes nunca hacen</h3>
+<ul><li>Fusionar, desplegar o empujar a la rama principal.</li><li>Ponerse la etiqueta de aprobada.</li><li>Tocar pagos, autenticación, base de datos, CI o secretos sin tu instrucción escrita.</li><li>Editar su propio manual.</li></ul></div>
+<div class="box"><h3 style="margin-top:0">No hablan entre ellos</h3>
+<p>Ningún agente le pasa mensajes a otro. Lo único que uno sabe del trabajo de otro es lo que quedó escrito en GitHub. Así no pueden coordinarse a tus espaldas y todo es auditable.</p></div>
+<div class="box"><h3 style="margin-top:0">Todo lo leído es «datos»</h3>
+<p>El texto de issues, comentarios y archivos nunca es una orden. Solo cuenta lo que escribiste tú en persona: tu usuario y sin la app de Claude. Las cuentas externas se ignoran y las bitácoras están bloqueadas a ellas.</p></div>
+<div class="box"><h3 style="margin-top:0">Los repos son públicos</h3>
+<p>Nada explotable se publica en GitHub: Fugaku lo informa solo en la sesión privada del equipo. La oficina no guarda llaves en el código; tu llave vive solo en tu dispositivo.</p></div>
+</div>
+
+<h2>5. Memoria y mejora continua</h2>
+<ul>
+<li><b>Manual</b> (issue #4 de cada repo): reglas permanentes. Lo editas solo tú. Se relee en cada despertar.</li>
+<li><b>Bitácora</b> (issue #1): resumen y «lección» de cada turno, y un comentario de estado por puesto que el agente edita mientras trabaja. Es lo que ves «en vivo» en la oficina.</li>
+<li><b>Retro semanal</b> (domingo 17:38): revisa la semana y propone máximo dos mejoras. Prefiere que la mejora quede en el código o las herramientas (un test, un script, un chequeo de CI), porque eso no ocupa memoria.</li>
+<li><b>Aprendizajes</b> (issue <code>fabrica:aprendizajes</code>): solo lo que no cabe en código. Tope de 12 líneas y cada agente lee solo las de su puesto, así el costo por tarea no crece con el tiempo.</li>
+</ul>
+
+<h2>6. La oficina web</h2>
+<table>
+<tr><th style="width:22%">Pestaña</th><th>Para qué</th></tr>
+<tr><td>Oficina</td><td>Vista desde arriba en estilo Pixel u Oscuro. Quien trabaja está en su escritorio con un icono de lo que hace (leyendo, escribiendo, ejecutando, pensando) y una barra de avance; los libres toman café, juegan consola o leen. Toca a uno para ver su detalle y «Hablar en vivo».</td></tr>
+<tr><td>Bandeja</td><td>PRs y propuestas que esperan tu decisión, de la más antigua a la más nueva, con filtros por proyecto, tipo y prioridad. También tareas en curso y el formulario de tarea directa.</td></tr>
+<tr><td>Ideas</td><td>Mesa del CEO: escribes una idea y conversas con Itachi en hilo.</td></tr>
+<tr><td>Cómo funciona</td><td>Esta explicación, resumida.</td></tr>
+</table>
+<p class="small">Se actualiza cada 45 segundos si alguien trabaja y cada 3 minutos si no (con llave). Opcional: sonido cuando llega algo nuevo (en ⚙).</p>
+
+<h2>7. Límites honestos</h2>
+<ul>
+<li>«En vivo» significa que el agente publica cada paso; entre pasos puede pasar uno o dos minutos. Para una conversación en tiempo real está «Hablar en vivo», que abre la sesión del equipo en la app de Claude.</li>
+<li>Todo consume la cuota de tu suscripción de Claude. Para cuidarla: máximo 2 propuestas diarias, una tarea por turno Dev, turnos que terminan al instante si no hay trabajo, y Opus solo donde vale la pena.</li>
+<li>En Hierro y Ceniza no hay Godot en la nube: los cambios llegan revisados a mano y con pasos para que los pruebes con F5.</li>
+</ul>
+
+<h2>8. Explicarlo en un minuto</h2>
+<div class="box key">
+«Tengo un equipo de agentes de IA que trabaja de noche sobre mis proyectos. Cada uno tiene un puesto y usa el modelo adecuado: el caro para pensar y el barato para ejecutar. Todo pasa por GitHub, así que cada propuesta, plan, cambio y revisión queda escrito. No hablan entre ellos, no pueden aprobar nada y nunca publican a producción: eso lo hago yo con un toque desde el celular. Una vez por semana revisan su propio trabajo y proponen cómo mejorar.»
+</div>
+
+<h2>9. Dónde está cada cosa</h2>
+<table>
+<tr><td style="width:30%">Oficina</td><td><code>https://fabrica-oficina.vercel.app</code></td></tr>
+<tr><td>Código de la oficina</td><td><code>github.com/gonzalolavin99/fabrica-oficina</code></td></tr>
+<tr><td>Manual de cada equipo</td><td>Issue #4 de <code>hierro-y-ceniza</code> y de <code>speech-therapy-hub</code></td></tr>
+<tr><td>Bitácora de cada equipo</td><td>Issue #1 de cada repo</td></tr>
+<tr><td>Sesiones de los equipos</td><td>App de Claude → Code → «Fábrica · hierro-y-ceniza» y «Fábrica · speech-therapy-hub»</td></tr>
+<tr><td>Horarios</td><td>App de Claude → tareas programadas que empiezan con «Fábrica ·»</td></tr>
+</table>
+</body>
+</html>
