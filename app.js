@@ -64,22 +64,23 @@ async function load() {
   try {
     for (const R of REPOS) {
       const [issues, pulls] = await Promise.all([gh(`${R.name}/issues?state=open&per_page=100`), gh(`${R.name}/pulls?state=open&per_page=50`)]);
-      const fab = issues.filter(i => !i.pull_request && i.labels.some(l => l.name.startsWith('fabrica:')));
+      const fab = issues.filter(i => !i.pull_request && i.user && i.user.login === OWNER && i.labels.some(l => l.name.startsWith('fabrica:')));
       const bit = fab.find(i => has(i, 'bitacora'));
       const estados = {}; let notas = [];
       if (bit) {
         const since = new Date(Date.now() - 7 * 864e5).toISOString();
         const cs = await gh(`${R.name}/issues/${bit.number}/comments?since=${since}&per_page=100`);
         for (const c of cs) {
+          if (!c.user || c.user.login !== OWNER) continue; // solo lo escrito por la cuenta dueña cuenta como estado o bitácora
           const m = (c.body || '').match(/<!--\s*fabrica-estado:(\w+)\s*-->/);
           if (m) estados[m[1]] = {...parseEstado(c.body), updated: c.updated_at};
           else notas.push({at: c.created_at, body: c.body});
         }
         notas = notas.slice(-3).reverse();
       }
-      const prs = pulls.filter(p => p.head.ref.startsWith('fabrica/')).map(p => ({n: p.number, title: p.title, url: p.html_url, at: p.updated_at, ref: p.head.ref, veredicto: ''}));
+      const prs = pulls.filter(p => p.head.ref.startsWith('fabrica/') && p.user && p.user.login === OWNER && p.head.repo && p.head.repo.full_name === `${OWNER}/${R.name}`).map(p => ({n: p.number, title: p.title, url: p.html_url, at: p.updated_at, ref: p.head.ref, veredicto: ''}));
       for (const p of prs.slice(0, 3)) {
-        const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => /VEREDICTO:/.test(c.body || ''));
+        const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => c.user && c.user.login === OWNER && /VEREDICTO:/.test(c.body || ''));
         if (rev) p.veredicto = (rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '';
       }
       const slim = i => ({n: i.number, title: i.title, url: i.html_url, at: i.updated_at, comments: i.comments, body: (i.body || '').slice(0, 600)});
@@ -208,7 +209,7 @@ async function showThread(repo, n) {
   const box = $(`hilo-${repo}-${n}`); box.hidden = false; box.innerHTML = '<p class="empty">Cargando…</p>';
   try {
     const cs = await gh(`${repo}/issues/${n}/comments?per_page=100`);
-    box.innerHTML = (cs.map(c => `<div class="msg ${isBot(c) ? 'bot' : 'me'}"><b>${isBot(c) ? 'Consejero' : 'Tú'} · ${ago(c.created_at)}</b>${esc(c.body.replace(/^\s*🤖\s*[^:]*:\s*/, ''))}</div>`).join('') || '<p class="empty">El Consejero aún no responde. Lo hará en su turno, o háblale en vivo desde la oficina.</p>')
+    box.innerHTML = (cs.map(c => `<div class="msg ${isBot(c) ? 'bot' : 'me'}"><b>${c.user.login !== OWNER ? 'Cuenta externa @' + esc(c.user.login) + ' (los agentes la ignoran)' : isBot(c) ? 'Consejero' : 'Tú'} · ${ago(c.created_at)}</b>${esc(c.body.replace(/^\s*🤖\s*[^:]*:\s*/, ''))}</div>`).join('') || '<p class="empty">El Consejero aún no responde. Lo hará en su turno, o háblale en vivo desde la oficina.</p>')
       + `<form data-reply="${repo}/${n}"><label for="r-${repo}-${n}">Tu respuesta</label><textarea id="r-${repo}-${n}" required></textarea><button class="primary" type="submit">Responder</button></form>`;
   } catch (e) { box.innerHTML = `<p class="empty">${esc(e.message)}</p>`; }
 }
