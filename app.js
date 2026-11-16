@@ -6,7 +6,7 @@ const TURNOS_BASE = {explorador: ['04:43'], consejero: ['10:22', '15:22', '20:22
 let REG = null, REPOS = [], PENDIENTES = [];
 function applyRegistry(reg) {
   REG = reg;
-  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE});
+  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE, despierto: p.turnos_encendidos !== false});
   REPOS = reg.proyectos.filter(p => p.estado !== 'pendiente').map(map);
   PENDIENTES = reg.proyectos.filter(p => p.estado === 'pendiente').map(map);
 }
@@ -319,7 +319,7 @@ function openProjects() {
   const cur = active();
   sheet(`<h3>Proyectos</h3><p>El equipo trabaja en un solo proyecto a la vez. Al cambiar, el otro queda en pausa desde su próximo turno; lo que estaba a medio camino se retoma cuando vuelvas.</p>
     ${REPOS.map(R => { const d = state.repos[R.name] || EMPTY, pend = d.props.length + d.prs.length + d.queue.length + d.planned.length + d.ideas.length, on = R.name === (cur || {}).name;
-      return `<div class="item"><span class="tag" style="color:${R.color}">${on ? 'activo' : 'en pausa'}</span><b>${esc(R.nombre)}</b><span class="meta">${esc(R.name)} · ${pend} pendiente(s) · ${d.dossierN ? 'el equipo ya lo conoce' : 'onboarding pendiente'}</span><div class="acts">${on ? '' : `<button class="primary" data-act="activar" data-repo="${R.name}">Trabajar en este</button>`}${d.dossierN ? `<button data-open="${R.name}/${d.dossierN}">Qué saben de él</button>` : ''}</div></div>`; }).join('')}
+      return `<div class="item"><span class="tag" style="color:${R.color}">${on ? 'activo' : 'en pausa'}</span><b>${esc(R.nombre)}</b><span class="meta">${esc(R.name)} · ${pend} pendiente(s) · ${d.dossierN ? 'el equipo ya lo conoce' : 'onboarding pendiente'} · turnos ${R.despierto ? 'encendidos' : 'apagados'}</span><div class="acts">${on ? '' : `<button class="primary" data-act="activar" data-repo="${R.name}">Trabajar en este</button>`}${d.dossierN ? `<button data-open="${R.name}/${d.dossierN}">Qué saben de él</button>` : ''}</div></div>`; }).join('')}
     ${PENDIENTES.map(P => `<div class="item"><span class="tag t-prop">por conectar</span><b>${esc(P.nombre)}</b><span class="meta">${esc(P.name)}</span><div class="acts"><a class="btn primary" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Pedir a la Sede que lo conecte</a></div><small>Escríbele: «Conecta el proyecto ${esc(P.nombre)}». Dar acceso de escritura a un repo nuevo lo aprueba siempre una persona.</small></div>`).join('')}
     <h2>Agregar proyecto</h2>
     <form id="addproj" class="card">
@@ -385,7 +385,7 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const {act: a, repo, n} = b.dataset, R = REPOS.find(r => r.name === repo);
   if (needToken()) return;
-  if (a === 'activar' && confirm(`¿Poner al equipo a trabajar en ${R.short}? El proyecto actual queda en pausa.`)) { if (await act(() => setActive(repo), `El equipo trabaja ahora en ${R.short}.`)) $('sheet').close(); }
+  if (a === 'activar' && confirm(`¿Poner al equipo a trabajar en ${R.short}? El proyecto actual queda en pausa.`)) { if (await act(() => setActive(repo), `El equipo trabaja ahora en ${R.nombre}.`)) { if (!R.despierto) sheet(`<h3>Último paso: despertar al equipo en ${esc(R.nombre)}</h3><p>Para no gastar tu cuota, los turnos de los proyectos en pausa están apagados. Pídele a la Sede que los encienda:</p><div class="card"><b>«Cambié el proyecto activo a ${esc(R.nombre)}: enciende sus turnos y apaga los del anterior.»</b></div><div class="rowbtns"><a class="btn primary" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Abrir la Sede</a></div>`); else $('sheet').close(); } }
   if (a === 'fusionar' && confirm(`¿Fusionar el PR #${n}?` + (R.despliega ? ' Esto lo despliega a producción.' : ''))) { if (await act(() => gh(`${repo}/pulls/${n}/merge`, {method: 'PUT', body: {merge_method: 'squash'}}), `PR #${n} fusionado${R.despliega ? ': Vercel lo está desplegando' : ''}.`)) $('sheet').close(); }
   if (a === 'aprobar') { if (await act(() => gh(`${repo}/issues/${n}/labels`, {method: 'POST', body: {labels: ['fabrica:aprobada']}}), `#${n} aprobada. El equipo la toma en su próximo turno Dev.`)) $('sheet').close(); }
   if (a === 'rechazar' && confirm(`¿Rechazar y cerrar la propuesta #${n}?`)) { if (await act(() => gh(`${repo}/issues/${n}`, {method: 'PATCH', body: {state: 'closed', state_reason: 'not_planned'}}), `#${n} rechazada. No la volverán a proponer.`)) $('sheet').close(); }
