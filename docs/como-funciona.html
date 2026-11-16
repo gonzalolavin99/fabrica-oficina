@@ -53,7 +53,7 @@ code{font:9pt ui-monospace,Menlo,Consolas,monospace;background:#f4f2f7;padding:0
 <table>
 <tr><th style="width:24%">Pieza</th><th>Qué es y dónde vive</th></tr>
 <tr><td><b>Reloj</b></td><td>Tareas programadas de Claude Code en la nube. Despiertan a cada equipo a su hora. Tu PC no interviene: puede estar apagado.</td></tr>
-<tr><td><b>Despachador</b></td><td>Una sesión de Claude Code permanente por proyecto, con acceso solo a ese repo. Corre con Sonnet (barato). No hace el trabajo: relee su manual y lanza al puesto que toca. Es también a quien le hablas «en vivo».</td></tr>
+<tr><td><b>Despachador</b></td><td>Una sesión de Claude Code permanente por proyecto, con acceso solo a ese repo. Corre con Sonnet (barato). Solo trabaja si su proyecto es el <b>activo</b> (lo eliges en la oficina): el equipo atiende un proyecto a la vez. No hace el trabajo: relee su manual y lanza al puesto que toca. Es también a quien le hablas «en vivo».</td></tr>
 <tr><td><b>Puestos</b></td><td>Subagentes que el despachador crea para cada turno, con el modelo que corresponde. Al terminar desaparecen, así la conversación no crece ni encarece.</td></tr>
 <tr><td><b>GitHub</b></td><td>La oficina real. Todo lo que hacen queda escrito y auditable: propuestas, ideas, planes, PRs, revisiones y bitácora.</td></tr>
 <tr><td><b>Oficina web</b></td><td>Página estática (PWA) en Vercel, repo <code>fabrica-oficina</code>. Lee GitHub desde tu navegador y, con tu llave guardada en el dispositivo, aprueba, rechaza, responde, crea tareas y fusiona. No tiene servidor ni base de datos propia.</td></tr>
@@ -63,21 +63,21 @@ code{font:9pt ui-monospace,Menlo,Consolas,monospace;background:#f4f2f7;padding:0
 <table>
 <tr><th>Nombre</th><th>Puesto</th><th>Modelo</th><th>Cuándo</th><th>Qué entrega</th></tr>
 <tr><td>Shisui</td><td>Explorador</td><td>Sonnet</td><td>Diario 04:43</td><td>Máx. 2 propuestas por día, con evidencia y prioridad</td></tr>
-<tr><td>Itachi</td><td>Consejero y Arquitecto</td><td>Opus</td><td>Diario 15:22 (ideas) y antes de cada Dev (plan)</td><td>Preguntas y objeciones a tus ideas; plan detallado de cada tarea aprobada; retro semanal</td></tr>
+<tr><td>Itachi</td><td>Consejero y Arquitecto</td><td>Opus</td><td>3 veces al día: 10:22, 15:22 y 20:22 (conversa contigo), y antes de cada Dev (plan)</td><td>Preguntas y objeciones a tus ideas y propuestas; ajusta la propuesta con lo que acuerden; plan detallado de cada tarea aprobada; retro semanal</td></tr>
 <tr><td>Sasuke</td><td>Dev</td><td>Sonnet</td><td>Diario 22:17</td><td>Implementa el plan al pie de la letra y abre un PR</td></tr>
 <tr><td>Madara</td><td>Revisor</td><td>Sonnet en Hierro y Ceniza · Opus en TherapyHub</td><td>Justo después del Dev</td><td>Veredicto del PR: listo, con observaciones o no fusionar</td></tr>
 <tr><td>Fugaku</td><td>Seguridad</td><td>Opus</td><td>Domingo 02:12</td><td>Auditoría del proyecto y de la fábrica; lo explotable, solo en privado</td></tr>
 </table>
-<p class="small">Horarios de Hierro y Ceniza (Santiago). TherapyHub corre 9 minutos después. Regla de modelos: Opus donde se piensa o donde un error es caro; Sonnet donde se ejecuta algo ya decidido.</p>
+<p class="small">Horarios en hora de Santiago; la oficina los muestra en la hora de tu dispositivo. Regla de modelos: Opus donde se piensa o donde un error es caro; Sonnet donde se ejecuta algo ya decidido.</p>
 
 <h2>3. El flujo de una tarea</h2>
 <ol>
 <li><b>Nace:</b> Shisui la propone, o tú traes una idea en la «Mesa del CEO» e Itachi la cuestiona hasta convertirla en propuestas, o tú creas una tarea directa.</li>
-<li><b>Decides:</b> en la Bandeja (ordenada de la más antigua a la más nueva, con filtros) tocas <i>Aprobar</i> o <i>Rechazar</i>. Una aprobación solo vale si la hiciste tú en persona.</li>
+<li><b>Conversas y decides:</b> en la Bandeja (de la más antigua a la más nueva, con filtros) abres la propuesta, la lees completa, le preguntas o pides cambios a Itachi en el hilo, y tocas <i>Aprobar</i> o <i>Rechazar</i>. Todo dentro de la app; una aprobación solo vale si la hiciste tú.</li>
 <li><b>Plan:</b> en el turno Dev, Itachi escribe en el issue un plan paso a paso.</li>
 <li><b>Código:</b> Sasuke lo implementa en una rama, corre las pruebas y abre el PR.</li>
-<li><b>Revisión:</b> Madara lee el diff sin saber nada más que lo escrito y deja su veredicto.</li>
-<li><b>Fusión:</b> tú tocas <i>Fusionar</i>. En TherapyHub eso despliega a producción en Vercel. En Hierro y Ceniza lo pruebas con F5 en Godot.</li>
+<li><b>Revisión:</b> Madara lee el diff sin saber nada más que lo escrito y deja su veredicto. El equipo no empieza otra tarea hasta que él termina: una tarea a la vez, de punta a punta.</li>
+<li><b>Fusión:</b> en la app ves los archivos cambiados y el veredicto, y tocas <i>Fusionar</i>. En TherapyHub eso despliega a producción en Vercel. En Hierro y Ceniza lo pruebas con F5 en Godot.</li>
 </ol>
 
 <h2 class="pb">4. Reglas que lo hacen seguro</h2>
@@ -103,8 +103,8 @@ code{font:9pt ui-monospace,Menlo,Consolas,monospace;background:#f4f2f7;padding:0
 <h2>6. La oficina web</h2>
 <table>
 <tr><th style="width:22%">Pestaña</th><th>Para qué</th></tr>
-<tr><td>Oficina</td><td>Vista desde arriba en estilo Pixel u Oscuro. Quien trabaja está en su escritorio con un icono de lo que hace (leyendo, escribiendo, ejecutando, pensando) y una barra de avance; los libres toman café, juegan consola o leen. Toca a uno para ver su detalle y «Hablar en vivo».</td></tr>
-<tr><td>Bandeja</td><td>PRs y propuestas que esperan tu decisión, de la más antigua a la más nueva, con filtros por proyecto, tipo y prioridad. También tareas en curso y el formulario de tarea directa.</td></tr>
+<tr><td>Oficina</td><td>Una sala, un equipo, el proyecto activo arriba (tócalo para cambiar). Vista desde arriba en estilo Pixel u Oscuro. Quien trabaja está en su escritorio con un icono de lo que hace (leyendo, escribiendo, ejecutando, pensando) y una barra de avance; los libres toman café, juegan consola o leen. Toca a uno para ver su detalle y «Hablar en vivo».</td></tr>
+<tr><td>Bandeja</td><td>PRs y propuestas que esperan tu decisión, de la más antigua a la más nueva, con filtros por proyecto, tipo y prioridad. Cada una se abre dentro de la app: texto completo, conversación, cambios de código y botones para decidir. También tareas en curso y el formulario de tarea directa.</td></tr>
 <tr><td>Ideas</td><td>Mesa del CEO: escribes una idea y conversas con Itachi en hilo.</td></tr>
 <tr><td>Cómo funciona</td><td>Esta explicación, resumida.</td></tr>
 </table>
