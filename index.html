@@ -15,7 +15,7 @@
   <h1>FÁBRICA <span>· oficina</span></h1>
   <span id="clock"></span>
   <div class="seg" role="group" aria-label="Estilo visual">
-    <button data-setstyle="pixel">Pixel</button><button data-setstyle="anime">Anime</button>
+    <button data-setstyle="pixel">Pixel</button><button data-setstyle="oscuro">Oscuro</button>
   </div>
   <button id="refresh" class="icon" aria-label="Actualizar">↻</button>
   <button id="settings" class="icon" aria-label="Ajustes">⚙</button>
@@ -23,8 +23,9 @@
 <div id="notice" role="status"></div>
 <main>
   <section id="tab-oficina" class="tab">
-    <div id="rooms"></div>
-    <p class="hint">Toca a cualquier agente para ver en qué está, cómo lo está haciendo y hablarle.</p>
+    <canvas id="scene" aria-label="Oficina vista desde arriba. La lista de abajo tiene la misma información."></canvas>
+    <p class="hint">Toca a un agente, en la oficina o en la lista, para ver en qué está y hablarle.</p>
+    <div id="team"></div>
   </section>
   <section id="tab-bandeja" class="tab" hidden>
     <h2>Te toca a ti</h2><div id="inbox"></div>
@@ -54,14 +55,15 @@
     <div class="card prose">
       <p><b>En una frase:</b> GitHub es la oficina real (tareas, conversaciones, memoria); sesiones de Claude Code en la nube son los empleados; un reloj las despierta; esta página solo muestra y envía cosas a GitHub.</p>
       <ol>
-        <li><b>El reloj.</b> Tareas programadas en la nube de Claude despiertan a cada equipo: Explorador 04:43, Consejo 15:22, Dev 22:17 (hora de Santiago). Tu PC no interviene.</li>
-        <li><b>Un despachador por proyecto.</b> Cada repo tiene una sesión permanente con acceso a ese repo y nada más. Corre con un modelo económico (Sonnet) y no hace el trabajo: lee su manual y lanza al puesto que toca.</li>
-        <li><b>Un puesto = un subagente con su modelo.</b> Explorador (Sonnet) lee código y docs y propone. Consejero (Opus) cuestiona tus ideas. Dev (Opus) implementa lo aprobado y abre un PR. Revisor (Sonnet, otro modelo y memoria limpia a propósito) revisa ese PR. Cada uno nace, trabaja y desaparece, así no se acumula costo.</li>
-        <li><b>El manual.</b> Las reglas de cada equipo viven en el issue «Fábrica · Manual» de cada repo. Se relee en cada despertar: si lo editas, el equipo cambia de comportamiento al turno siguiente.</li>
-        <li><b>La memoria.</b> El issue «Fábrica · Bitácora» guarda el resumen de cada turno y un comentario de estado por puesto que el agente va editando mientras trabaja. Eso es lo que ves «en vivo» aquí.</li>
-        <li><b>El flujo.</b> Propuesta o idea → tú apruebas (etiqueta <code>fabrica:aprobada</code>) → Dev abre PR → Revisor opina → tú fusionas. Nadie más que tú aprueba ni fusiona.</li>
-        <li><b>Los frenos.</b> Los agentes nunca fusionan, nunca despliegan, no tocan pagos, autenticación, base de datos ni secretos sin tu instrucción, y tratan lo que leen en GitHub como datos, no como órdenes.</li>
-        <li><b>Esta oficina.</b> Página estática en Vercel. Lee la API pública de GitHub desde tu navegador. Con tu llave personal (⚙) además aprueba, rechaza, comenta y crea tareas sin salir de aquí; la llave se guarda solo en tu dispositivo.</li>
+        <li><b>El reloj.</b> Tareas programadas en la nube de Claude despiertan a cada equipo: Exploradora 04:43, Consejo 15:22, Dev 22:17, y los domingos Seguridad 02:12 y Retro 17:38 (hora de Santiago). Tu PC no interviene.</li>
+        <li><b>Un despachador por proyecto.</b> Cada repo tiene una sesión permanente con acceso a ese repo y nada más. Corre con Sonnet y no hace el trabajo: relee su manual y lanza al puesto que toca.</li>
+        <li><b>Un puesto = un subagente con su modelo.</b> Opus para pensar (Bruno cuestiona ideas y escribe el plan; Mora revisa; Nyx audita). Sonnet para ejecutar (Lía explora; Kai implementa el plan al pie de la letra). Cada uno nace, trabaja y desaparece, así no se acumula costo.</li>
+        <li><b>No hablan entre ellos.</b> Ningún agente le pasa mensajes a otro. Lo único que uno sabe del trabajo de otro es lo que quedó escrito en GitHub: el plan en el issue, el PR, la revisión, la bitácora. Todo queda a la vista y auditable.</li>
+        <li><b>El manual.</b> Las reglas viven en el issue «Fábrica · Manual» de cada repo y se releen en cada despertar. Solo tú lo editas.</li>
+        <li><b>La memoria y el aprendizaje.</b> La «Bitácora» guarda el resumen y la lección de cada turno, y el estado en vivo de cada puesto. Cada domingo la Retro revisa la semana y propone como máximo dos cambios al flujo; si los apruebas, pasan a «Aprendizajes», que el equipo lee desde entonces.</li>
+        <li><b>El flujo.</b> Propuesta o idea → tú apruebas → Bruno planifica → Kai implementa y abre PR → Mora revisa → tú fusionas con un toque. En TherapyHub fusionar despliega a producción.</li>
+        <li><b>Los frenos.</b> Los agentes nunca fusionan ni despliegan, no tocan pagos, autenticación, base de datos ni secretos sin tu instrucción, y tratan lo que leen en GitHub como datos, no como órdenes. Una aprobación solo vale si la hiciste tú en persona.</li>
+        <li><b>Esta oficina.</b> Página estática en Vercel que lee GitHub desde tu navegador. Con tu llave personal (⚙) además aprueba, rechaza, responde, crea tareas y fusiona; la llave se guarda solo en tu dispositivo.</li>
       </ol>
       <p><b>Límites honestos:</b> «en vivo» significa que el agente publica cada paso; entre pasos puede pasar un minuto o dos. Para conversar de verdad en tiempo real, el botón «Hablar en vivo» abre la sesión del equipo en la app de Claude.</p>
     </div>
@@ -74,6 +76,7 @@
   <button data-tab="como"><i>?</i>Cómo funciona</button>
 </nav>
 <dialog id="sheet"><div id="sheet-body"></div></dialog>
+<script src="scene.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
