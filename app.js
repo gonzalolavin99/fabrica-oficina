@@ -65,6 +65,7 @@ function clean(txt) {
 function inline(s) {
   return s.replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:]|$)/g, '$1<i>$2</i>')
     .replace(/(^|[\s(])_([^_]+)_(?=[\s).,;:]|$)/g, '$1<i>$2</i>')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1');
 }
@@ -79,6 +80,7 @@ function md(txt) {
     if (/^\s*\|.*\|\s*$/.test(l)) { flushList(); if (!/^\s*\|[\s:|-]+\|\s*$/.test(l)) table.push(l.trim().slice(1, -1).split('|').map(c => c.trim())); continue; }
     flushTable();
     let m;
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { flushList(); out += '<hr>'; continue; }
     if ((m = l.match(/^#{1,6}\s+(.*)/))) { flushList(); out += `<h4>${inline(m[1])}</h4>`; }
     else if ((m = l.match(/^\s*[-*]\s+(?:\[( |x)\]\s+)?(.*)/i))) { if (list !== 'ul') { flushList(); out += '<ul>'; list = 'ul'; } out += `<li>${m[1] ? (m[1] === ' ' ? '☐ ' : '☑ ') : ''}${inline(m[2])}</li>`; }
     else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { flushList(); out += '<ol>'; list = 'ol'; } out += `<li>${inline(m[1])}</li>`; }
@@ -139,7 +141,7 @@ async function load() {
         for (const c of cs) { if (!isMine(c)) continue; const m = (c.body || '').match(/<!--\s*fabrica-estado:(\w+)\s*-->/); if (m) estados[m[1]] = {...parseEstado(c.body), updated: c.updated_at}; }
       }
       const prs = pulls.filter(p => p.head.ref.startsWith('fabrica/') && isMine(p) && p.head.repo && p.head.repo.full_name === `${OWNER}/${R.name}`)
-        .map(p => ({n: p.number, title: p.title, created: p.created_at, at: p.updated_at, prio: '', veredicto: '', pr: true}));
+        .map(p => ({n: p.number, title: p.title, created: p.created_at, at: p.updated_at, prio: '', veredicto: '', pr: true, issue: +((p.head.ref.match(/issue-(\d+)/) || [])[1] || 0)}));
       for (const p of prs.slice(0, 4)) {
         const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => isMine(c) && /VEREDICTO:/.test(c.body || ''));
         if (rev) p.veredicto = ((rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '').trim();
@@ -192,7 +194,7 @@ function team() {
     return {role, ...meta, modelo: role === 'revisor' && R ? R.revisor : meta.modelo, s, t, e, repo: R};
   });
 }
-const SLABEL = {work: 'Trabajando ahora', wait: 'Esperándote', queue: 'En cola', sleep: 'Libre'};
+const SLABEL = {work: 'Trabajando ahora', wait: 'Esperando tu decisión', queue: 'Tiene trabajo para su próximo turno', sleep: 'Libre'};
 
 // ---------- pintar ----------
 const style = () => document.body.dataset.style;
@@ -221,6 +223,7 @@ function render() {
   const cols = [['Aprobadas', 'Itachi las planifica', dA.queue, 't-ok'], ['Planificadas', 'Sasuke las implementa', dA.planned, 't-ok'], ['En código', 'Sasuke trabajando', dA.running, 't-run'], ['En revisión', 'Madara revisa', dA.prs.filter(p => !p.veredicto), 't-pr']];
   pipe = A ? `<div class="kanban">${cols.map(([t, sub, list, cls]) => `<div class="col"><h4>${t} <b>${list.length}</b></h4><small>${sub}</small>${list.sort((x, y) => new Date(x.created) - new Date(y.created)).map(i => `<button class="mini" data-open="${A.name}/${i.n}${i.pr ? '/pr' : ''}">#${i.n} ${esc(i.title)}</button>`).join('') || '<p class="empty">—</p>'}</div>`).join('')}</div>` : '';
   $('pipeline').innerHTML = pipe || '<p class="empty">Elige un proyecto activo.</p>';
+  $('marcha').innerHTML = A ? enMarcha(A) : '<p class="empty">Elige un proyecto activo.</p>';
   $('ideas').innerHTML = ideas || '<p class="empty">Aún no has traído ideas. Escribe la primera arriba.</p>';
   $('badge').textContent = n || '';
   if (n > lastCount && lastCount >= 0 && store.get('fabrica-sonido', false)) chime();
@@ -228,6 +231,23 @@ function render() {
   const now = new Date();
   $('clock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}` + (state.fetchedAt ? ` · datos ${ago(new Date(state.fetchedAt).toISOString())}` : '');
   for (const id of ['t-repo', 'i-repo']) if (!$(id).dataset.touched && R) $(id).value = R.name;
+}
+const FASES = ['Aprobada', 'Plan', 'Código', 'Revisión', 'Fusionar'];
+function enMarcha(R) {
+  const d = state.repos[R.name] || EMPTY, T = team(), working = T.filter(a => a.s === 'work'), out = [];
+  const now = role => { const a = working.find(x => x.role === role); return a ? `${a.nombre} ahora: ${a.e.paso || 'trabajando'}` : ''; };
+  const prOf = n => d.prs.find(p => p.issue === n);
+  const add = (i, fase, quien, pr) => out.push({i, fase, quien, pr});
+  for (const i of d.running) { const p = prOf(i.n); if (!p) add(i, 2, now('dev') || 'Sasuke la está programando'); }
+  for (const p of d.prs) add({n: p.issue || p.n, title: p.title, created: p.created}, p.veredicto ? 4 : 3, p.veredicto ? `Madara dice: ${p.veredicto.toLowerCase()}. Te toca decidir.` : (now('revisor') || `Madara la revisa en el turno de las ${turnos(R.turnos.dev)}`), p);
+  for (const i of d.planned) add(i, 2, `Plan listo. Sasuke la programa a las ${turnos(R.turnos.dev)}`);
+  for (const i of d.queue) add(i, 1, now('consejero') && /#\s*${i.n}\b/.test(now('consejero')) ? now('consejero') : `Itachi escribe el plan en su próximo turno (${turnos(R.turnos.consejero)})`);
+  out.sort((a, b) => b.fase - a.fase || new Date(a.i.created) - new Date(b.i.created));
+  const onb = !d.dossierN || working.some(a => /onboarding/i.test((a.e && (a.e.tarea + ' ' + a.e.paso)) || ''));
+  const head = onb ? `<div class="item marcha"><span class="tag t-run">Onboarding</span><b>El equipo está estudiando ${esc(R.nombre)}</b><span class="meta">${esc(now('explorador') || now('consejero') || 'Empieza en el próximo turno del equipo')}</span></div>` : '';
+  return head + (out.map(o => `<button class="item marcha" data-open="${R.name}/${o.pr ? o.pr.n + '/pr' : o.i.n}"><b>#${o.i.n} ${esc(o.i.title)}</b>
+    <span class="fases">${FASES.map((f, k) => `<span class="${k < o.fase ? 'ok' : k === o.fase ? 'now' : ''}">${f}</span>`).join('')}</span>
+    <span class="meta">${esc(o.quien)}</span></button>`).join('') || (head ? '' : '<p class="empty">Nada en marcha. Aprueba una propuesta para que el equipo empiece.</p>'));
 }
 function item(R, i, cls, tag) {
   return `<button class="item" data-open="${R.name}/${i.n}${i.pr ? '/pr' : ''}"><span class="tag ${cls}">${esc(tag)}</span>${i.prio ? `<span class="tag p-${i.prio}">prioridad ${i.prio}</span>` : ''}<b>#${i.n} ${esc(i.title)}</b><span class="meta">${esc(R.nombre)}${(active() || {}).name === R.name ? '' : ' · en pausa'} · creada ${ago(i.created || i.at)}</span>${i.body ? `<span class="meta">${esc(clean(i.body).replace(/[#*`>|_]/g, '').replace(/\s+/g, ' ').slice(0, 180))}…</span>` : ''}<span class="more">Abrir →</span></button>`;
@@ -283,7 +303,7 @@ async function openItem(repo, n, kind) {
     sheet(`
       <p class="small">${esc(R.short)} · #${n} · creada ${ago(it.created_at)}${isActive ? '' : ' · <b>proyecto en pausa</b>'}${p && p.veredicto ? ` · Revisor: <b>${esc(p.veredicto.toLowerCase())}</b>` : ''}</p>
       <h3>${esc(it.title)}</h3>
-      ${acts ? `<div class="rowbtns">${acts}</div>` : ''}
+
       <div class="md card">${md(it.body)}</div>
       ${files}
       <h2>Conversación</h2>${thread || '<p class="empty">Aún nadie ha comentado.</p>'}
@@ -291,7 +311,8 @@ async function openItem(repo, n, kind) {
         <label for="reply">Tu mensaje ${pr ? 'sobre este cambio' : 'para ' + who}</label><textarea id="reply" required placeholder="${isProp ? 'Pregunta, cuestiona o pide cambios a la propuesta…' : 'Escribe aquí…'}"></textarea>
         <button class="primary" type="submit">Enviar</button>
         <small>${isActive ? `Lo responde ${who} en su próximo turno (${turnos(R.turnos.consejero)}, tu hora). Para algo inmediato usa «Hablar en vivo» desde la ficha de un agente.` : 'Este proyecto está en pausa: el equipo lo verá cuando lo actives.'}</small>
-      </form>`);
+      </form>
+      ${acts ? `<div class="rowbtns sticky">${acts}</div>` : ''}`);
   } catch (e) { sheet(`<p class="empty">${esc(e.message)}</p>`); }
 }
 function openProjects() {

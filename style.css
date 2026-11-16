@@ -128,3 +128,10 @@ button.mini{display:block;width:100%;text-align:left;font-size:12px;padding:6px 
 .paleta{display:flex;gap:8px;flex-wrap:wrap}.paleta label{margin:0;cursor:pointer}.paleta input{position:absolute;opacity:0;width:1px}
 .paleta i{display:block;width:30px;height:30px;border-radius:50%;border:3px solid transparent}.paleta input:checked+i{border-color:var(--ink)}
 .paleta input:focus-visible+i{outline:3px solid var(--info)}
+.rowbtns.sticky{position:sticky;bottom:-16px;background:var(--panel);margin:12px -16px 0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:2px solid var(--line);z-index:2}
+.item.marcha{cursor:pointer}
+.fases{display:flex;gap:3px;margin:8px 0 4px}
+.fases span{flex:1;text-align:center;font-size:11px;padding:4px 2px;background:var(--bg);color:var(--dim);border-radius:var(--radius)}
+.fases span.ok{background:var(--line);color:var(--ink)}
+.fases span.now{background:var(--accent);color:var(--on-accent);font-weight:700}
+.md hr{border:0;border-top:1px solid var(--line);margin:10px 0}
