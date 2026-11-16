@@ -6,7 +6,7 @@
       "nombre": "Hierro y Ceniza",
       "color": "#c0503a",
       "estado": "listo",
-      "session": "session_01RhVe2yqKVjLJN25naPr6my",
+      "session": "session_01RhVe325NPiEieaw8vXNcFL",
       "revisor": "Sonnet",
       "despliega": false,
       "turnos": {
@@ -14,12 +14,10 @@
           "04:43"
         ],
         "consejero": [
-          "10:22",
-          "15:22",
-          "20:22"
+          "cada hora"
         ],
         "dev": [
-          "22:17"
+          "cada hora"
         ],
         "seguridad": [
           "dom 02:12"

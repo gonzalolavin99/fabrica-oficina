@@ -187,7 +187,7 @@ function team() {
     else if (role === 'consejero' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) aprobada(s) por planificar`; }
     else if (role === 'consejero' && d.ideas.length) { s = 'wait'; t = `${d.ideas.length} idea(s) en conversación contigo`; }
     else if (role === 'dev' && d.running.length) { s = 'wait'; t = `#${d.running[0].n} a medio camino`; }
-    else if (role === 'dev' && d.planned.length) { s = 'queue'; t = `${d.planned.length} tarea(s) planificada(s) para su turno de las ${turnos(R.turnos.dev)}`; }
+    else if (role === 'dev' && d.planned.length) { s = 'queue'; t = `${d.planned.length} tarea(s) planificada(s), las toma en la próxima ronda (${turnos(R.turnos.dev)})`; }
     else if (role === 'revisor' && d.prs.some(p => !p.veredicto)) { s = 'queue'; t = 'PR por revisar'; }
     else if (role === 'revisor' && d.prs.length) { s = 'wait'; t = `${d.prs.length} PR revisado(s), esperando que decidas`; }
     else t = role === 'revisor' ? 'Libre. Entra justo después del Dev' : `Libre. Próximo turno ${turnos(R.turnos[role])}`;
@@ -239,9 +239,9 @@ function enMarcha(R) {
   const prOf = n => d.prs.find(p => p.issue === n);
   const add = (i, fase, quien, pr) => out.push({i, fase, quien, pr});
   for (const i of d.running) { const p = prOf(i.n); if (!p) add(i, 2, now('dev') || 'Sasuke la está programando'); }
-  for (const p of d.prs) add({n: p.issue || p.n, title: p.title, created: p.created}, p.veredicto ? 4 : 3, p.veredicto ? `Madara dice: ${p.veredicto.toLowerCase()}. Te toca decidir.` : (now('revisor') || `Madara la revisa en el turno de las ${turnos(R.turnos.dev)}`), p);
-  for (const i of d.planned) add(i, 2, `Plan listo. Sasuke la programa a las ${turnos(R.turnos.dev)}`);
-  for (const i of d.queue) add(i, 1, now('consejero') && /#\s*${i.n}\b/.test(now('consejero')) ? now('consejero') : `Itachi escribe el plan en su próximo turno (${turnos(R.turnos.consejero)})`);
+  for (const p of d.prs) add({n: p.issue || p.n, title: p.title, created: p.created}, p.veredicto ? 4 : 3, p.veredicto ? `Madara dice: ${p.veredicto.toLowerCase()}. Te toca decidir.` : (now('revisor') || `Madara la revisa en la próxima ronda (${turnos(R.turnos.dev)})`), p);
+  for (const i of d.planned) add(i, 2, `Plan listo. Sasuke la programa en la próxima ronda (${turnos(R.turnos.dev)})`);
+  for (const i of d.queue) add(i, 1, now('consejero') && /#\s*${i.n}\b/.test(now('consejero')) ? now('consejero') : `Itachi escribe el plan en la próxima ronda del equipo (${turnos(R.turnos.consejero)})`);
   out.sort((a, b) => b.fase - a.fase || new Date(a.i.created) - new Date(b.i.created));
   const onb = !d.dossierN || working.some(a => /onboarding/i.test((a.e && (a.e.tarea + ' ' + a.e.paso)) || ''));
   const head = onb ? `<div class="item marcha"><span class="tag t-run">Onboarding</span><b>El equipo está estudiando ${esc(R.nombre)}</b><span class="meta">${esc(now('explorador') || now('consejero') || 'Empieza en el próximo turno del equipo')}</span></div>` : '';
