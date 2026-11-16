@@ -13,6 +13,7 @@
 <body data-style="pixel">
 <header>
   <h1>FÁBRICA <span>· oficina</span></h1>
+  <button id="proyecto" class="proj" aria-label="Proyecto activo"></button>
   <span id="clock"></span>
   <div class="seg" role="group" aria-label="Estilo visual">
     <button data-setstyle="pixel">Pixel</button><button data-setstyle="oscuro">Oscuro</button>
@@ -43,7 +44,7 @@
       <label for="t-title">Qué quieres que hagan</label><input id="t-title" required maxlength="120" placeholder="Ej: Agregar filtro por fecha en sesiones">
       <label for="t-body">Detalle y cómo sabrás que quedó bien</label><textarea id="t-body"></textarea>
       <button class="primary" type="submit">Enviar al Dev</button>
-      <small>Entra ya aprobada: el Dev la toma en su turno de las 22:17 sin pasar por el Consejero.</small>
+      <small>Entra ya aprobada: Itachi la planifica y Sasuke la implementa en el próximo turno Dev, si el proyecto está activo.</small>
     </form>
   </section>
   <section id="tab-ideas" class="tab" hidden>
@@ -53,7 +54,7 @@
       <label for="i-title">Tu idea en una frase</label><input id="i-title" required maxlength="120" placeholder="Ej: Un modo foto para el juego">
       <label for="i-body">Por qué la quieres y qué imaginas</label><textarea id="i-body"></textarea>
       <button class="primary" type="submit">Llevar al Consejero</button>
-      <small>El Consejero la cuestiona, te hace preguntas y, cuando quede clara, la parte en tareas que tú apruebas. Responde en su turno (15:22) o al instante si le hablas en vivo.</small>
+      <small>Itachi la cuestiona, te hace preguntas y, cuando quede clara, la parte en propuestas que tú apruebas. Responde tres veces al día, o al instante si le hablas en vivo.</small>
     </form>
     <h2>Ideas en conversación</h2><div id="ideas"></div>
   </section>
@@ -62,13 +63,13 @@
     <div class="card prose">
       <p><b>En una frase:</b> GitHub es la oficina real (tareas, conversaciones, memoria); sesiones de Claude Code en la nube son los empleados; un reloj las despierta; esta página solo muestra y envía cosas a GitHub.</p>
       <ol>
-        <li><b>El reloj.</b> Tareas programadas en la nube de Claude despiertan a cada equipo: Exploradora 04:43, Consejo 15:22, Dev 22:17, y los domingos Seguridad 02:12 y Retro 17:38 (hora de Santiago). Tu PC no interviene.</li>
-        <li><b>Un despachador por proyecto.</b> Cada repo tiene una sesión permanente con acceso a ese repo y nada más. Corre con Sonnet y no hace el trabajo: relee su manual y lanza al puesto que toca.</li>
+        <li><b>El reloj.</b> Tareas programadas en la nube de Claude despiertan al equipo: Explorador una vez al día, Consejero tres veces, Dev cada noche, y los domingos Seguridad y Retro. Los horarios viven en hora de Chile y la oficina te los muestra en tu hora. Tu PC no interviene.</li>
+        <li><b>Un equipo, un proyecto a la vez.</b> Eliges arriba en qué proyecto trabaja el equipo; los demás quedan en pausa. Por dentro cada proyecto tiene su sede (una sesión con acceso solo a ese repo, con Sonnet) que despierta solo si es el proyecto activo, relee su manual y lanza al puesto que toca. Y hacen una tarea a la vez: no empiezan otra hasta que el Revisor terminó la anterior.</li>
         <li><b>Un puesto = un subagente con su modelo.</b> Opus para pensar (Itachi cuestiona ideas y escribe el plan; Fugaku audita; Madara revisa en TherapyHub, donde fusionar despliega a producción). Sonnet para ejecutar (Shisui explora; Sasuke implementa el plan al pie de la letra; Madara revisa en Hierro y Ceniza, que pruebas tú con F5). Cada uno nace, trabaja y desaparece, así no se acumula costo.</li>
         <li><b>No hablan entre ellos.</b> Ningún agente le pasa mensajes a otro. Lo único que uno sabe del trabajo de otro es lo que quedó escrito en GitHub: el plan en el issue, el PR, la revisión, la bitácora. Todo queda a la vista y auditable.</li>
         <li><b>El manual.</b> Las reglas viven en el issue «Fábrica · Manual» de cada repo y se releen en cada despertar. Solo tú lo editas.</li>
         <li><b>La memoria y el aprendizaje.</b> La «Bitácora» guarda el resumen y la lección de cada turno, y el estado en vivo de cada puesto. Cada domingo la Retro revisa la semana y propone como máximo dos mejoras, preferentemente en el código o las herramientas del repo (así no ocupan memoria). Lo que no cabe ahí va a «Aprendizajes»: máximo 12 líneas, y cada agente lee solo las de su puesto.</li>
-        <li><b>El flujo.</b> Propuesta o idea → tú apruebas → Itachi planifica → Sasuke implementa y abre PR → Madara revisa → tú fusionas con un toque. En TherapyHub fusionar despliega a producción.</li>
+        <li><b>El flujo.</b> Propuesta o idea → tú apruebas → Itachi planifica → Sasuke implementa y abre PR → Madara revisa → tú fusionas con un toque. Todo se lee, se conversa y se decide dentro de esta app. En TherapyHub fusionar despliega a producción.</li>
         <li><b>Los frenos.</b> Los agentes nunca fusionan ni despliegan, no tocan pagos, autenticación, base de datos ni secretos sin tu instrucción, y tratan lo que leen en GitHub como datos, no como órdenes. Una aprobación solo vale si la hiciste tú en persona.</li>
         <li><b>Esta oficina.</b> Página estática en Vercel que lee GitHub desde tu navegador. Con tu llave personal (⚙) además aprueba, rechaza, responde, crea tareas y fusiona; la llave se guarda solo en tu dispositivo.</li>
       </ol>
