@@ -6,7 +6,7 @@ const TURNOS_BASE = {explorador: ['04:43'], consejero: ['10:22', '15:22', '20:22
 let REG = null, REPOS = [], PENDIENTES = [];
 function applyRegistry(reg) {
   REG = reg;
-  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE, despierto: p.turnos_encendidos !== false});
+  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE, despierto: p.turnos_encendidos !== false, ronda: p.ronda_min});
   REPOS = reg.proyectos.filter(p => p.estado !== 'pendiente').map(map);
   PENDIENTES = reg.proyectos.filter(p => p.estado === 'pendiente').map(map);
 }
@@ -147,7 +147,15 @@ async function load() {
         if (rev) p.veredicto = ((rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '').trim();
       }
       const slim = i => ({n: i.number, title: i.title, created: i.created_at, at: i.updated_at, prio: prioOf(i), comments: i.comments, body: (i.body || '').slice(0, 400)});
+      let porResponder = 0;
+      for (const i of fab.filter(i => has(i, 'idea') || ((has(i, 'propuesta') || has(i, 'aprobada')) && !has(i, 'en-curso')))) {
+        if (!i.comments) { if (has(i, 'idea')) porResponder++; continue; }
+        if (!token) continue;
+        const cs = await gh(`${R.name}/issues/${i.number}/comments?per_page=100`), last = cs[cs.length - 1];
+        if (last && isMine(last) && !isAgent(last)) porResponder++;
+      }
       state.repos[R.name] = {
+        porResponder,
         activo: !!(man && has(man, 'activo')), manualN: man ? man.number : null, bitN: bit ? bit.number : null, dossierN: dos ? dos.number : null,
         props: fab.filter(i => has(i, 'propuesta') && !has(i, 'aprobada')).map(slim),
         queue: fab.filter(i => has(i, 'aprobada') && !has(i, 'planificada') && !has(i, 'en-curso')).map(slim),
@@ -184,8 +192,9 @@ function team() {
     else if (e && e.estado.startsWith('trabaj') && fresh) { s = 'work'; t = e.paso || 'Trabajando'; }
     else if ((role === 'explorador' || role === 'consejero') && !d.dossierN && state.fetchedAt) { s = 'queue'; t = 'Onboarding pendiente: estudiarán el proyecto completo en el próximo turno'; }
     else if (role === 'explorador' && d.props.length) { s = 'wait'; t = `${d.props.length} propuesta(s) esperando tu decisión`; }
+    else if (role === 'consejero' && d.porResponder) { s = 'queue'; t = `${d.porResponder} mensaje(s) tuyo(s) por responder: lo hace en la próxima ronda (${proximaRonda(R)})`; }
     else if (role === 'consejero' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) aprobada(s) por planificar`; }
-    else if (role === 'consejero' && d.ideas.length) { s = 'wait'; t = `${d.ideas.length} idea(s) en conversación contigo`; }
+    else if (role === 'consejero' && d.ideas.length) { s = 'wait'; t = `${d.ideas.length} idea(s) abiertas: esperando tu respuesta`; }
     else if (role === 'dev' && d.running.length) { s = 'wait'; t = `#${d.running[0].n} a medio camino`; }
     else if (role === 'dev' && d.planned.length) { s = 'queue'; t = `${d.planned.length} tarea(s) planificada(s), las toma en la próxima ronda (${turnos(R.turnos.dev)})`; }
     else if (role === 'revisor' && d.prs.some(p => !p.veredicto)) { s = 'queue'; t = 'PR por revisar'; }
@@ -193,6 +202,11 @@ function team() {
     else t = role === 'revisor' ? 'Libre. Entra justo después del Dev' : `Libre. Próximo turno ${turnos(R.turnos[role])}`;
     return {role, ...meta, modelo: role === 'revisor' && R ? R.revisor : meta.modelo, s, t, e, repo: R};
   });
+}
+function proximaRonda(R) {
+  if (R.ronda == null) return turnos(R.turnos.consejero);
+  const d = new Date(); if (d.getUTCMinutes() >= R.ronda) d.setUTCHours(d.getUTCHours() + 1); d.setUTCMinutes(R.ronda, 0, 0);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 const SLABEL = {work: 'Trabajando ahora', wait: 'Esperando tu decisión', queue: 'Tiene trabajo para su próximo turno', sleep: 'Libre'};
 
@@ -266,7 +280,7 @@ function openAgent(role) {
     <dl class="kv">
       <dt>Ahora</dt><dd>${esc(a.s === 'sleep' && R ? (Scene.activity(role) || 'En pausa') + '. ' + a.t : a.t)}</dd>
       ${R ? `<dt>Proyecto</dt><dd>${esc(R.short)}</dd>` : ''}
-      ${e && e.tarea && e.tarea !== '—' ? `<dt>Tarea</dt><dd>${esc(e.tarea)}</dd>` : ''}
+      ${a.s === 'work' && e && e.tarea && e.tarea !== '—' ? `<dt>Tarea</dt><dd>${esc(e.tarea)}</dd>` : ''}
       ${a.s === 'work' && e && e.accion ? `<dt>Acción</dt><dd>${esc(e.accion)}</dd>` : ''}
       <dt>Modelo</dt><dd>${a.modelo}</dd>
       ${R ? `<dt>Turno (tu hora)</dt><dd>${role === 'revisor' ? 'Justo después del Dev' : turnos(R.turnos[role])}</dd>` : ''}
@@ -310,7 +324,7 @@ async function openItem(repo, n, kind) {
       <form data-reply="${repo}/${n}" class="card">
         <label for="reply">Tu mensaje ${pr ? 'sobre este cambio' : 'para ' + who}</label><textarea id="reply" required placeholder="${isProp ? 'Pregunta, cuestiona o pide cambios a la propuesta…' : 'Escribe aquí…'}"></textarea>
         <button class="primary" type="submit">Enviar</button>
-        <small>${isActive ? `Lo responde ${who} en su próximo turno (${turnos(R.turnos.consejero)}, tu hora). Para algo inmediato usa «Hablar en vivo» desde la ficha de un agente.` : 'Este proyecto está en pausa: el equipo lo verá cuando lo actives.'}</small>
+        <small>${isActive ? `Lo responde ${who} en la próxima ronda del equipo, a las ${proximaRonda(R)} (tu hora). Para algo inmediato usa «Hablar en vivo» desde la ficha de un agente.` : 'Este proyecto está en pausa: el equipo lo verá cuando lo actives.'}</small>
       </form>
       ${acts ? `<div class="rowbtns sticky">${acts}</div>` : ''}`);
   } catch (e) { sheet(`<p class="empty">${esc(e.message)}</p>`); }
@@ -397,7 +411,8 @@ document.addEventListener('change', e => {
   if (e.target.id === 't-repo' || e.target.id === 'i-repo') e.target.dataset.touched = '1';
 });
 document.addEventListener('submit', async e => {
-  e.preventDefault(); const f = e.target;
+  e.preventDefault(); const f = e.target, btn = f.querySelector('button[type=submit]');
+  if (btn) { if (btn.disabled) return; btn.disabled = true; setTimeout(() => { btn.disabled = false; }, 4000); }
   if (f.id === 'addproj') { if (needToken()) return; try { await addProject($('np-url').value, $('np-nombre').value, (f.querySelector('input[name=np-color]:checked') || {}).value || PALETA[0]); notice('Proyecto agregado. Ahora pídele a la Sede que lo conecte.'); openProjects(); } catch (err) { alert(err.message); } return; }
   if (f.id === 'tokform') { token = $('tok').value.trim(); store.set('fabrica-token', token); $('sheet').close(); notice(token ? 'Llave guardada.' : 'Llave borrada.'); return load(); }
   if (f.id === 'task') { if (await newIssue($('t-repo').value, $('t-title').value.trim(), ($('t-body').value.trim() || '(sin detalle)') + '\n\n— Tarea directa de Gonzalo desde la oficina.', ['fabrica:aprobada'])) f.reset(); return; }
