@@ -1,10 +1,15 @@
 'use strict';
 const OWNER = 'gonzalolavin99';
-// Proyectos conectados. El equipo trabaja en uno a la vez: el que tiene la etiqueta fabrica:activo en su manual (issue #4).
-const REPOS = [
-  {name: 'hierro-y-ceniza', short: 'HIERRO Y CENIZA', color: '#c0503a', revisor: 'Sonnet', despliega: false, session: 'session_01RhVe2yqKVjLJN25naPr6my', turnos: {explorador: ['04:43'], consejero: ['10:22', '15:22', '20:22'], dev: ['22:17'], seguridad: ['dom 02:12']}},
-  {name: 'speech-therapy-hub', short: 'THERAPYHUB', color: '#3aa0a8', revisor: 'Opus', despliega: true, session: 'session_01RhVe2zJLh7B9rJxR5sU9UK', turnos: {explorador: ['04:52'], consejero: ['10:31', '15:31', '20:31'], dev: ['22:26'], seguridad: ['dom 02:24']}},
-];
+// Proyectos: viven en proyectos.json (este repo). El equipo trabaja en uno a la vez: el que tiene fabrica:activo en su manual.
+const PALETA = ['#c0503a', '#3aa0a8', '#d4a017', '#7b5cd6', '#2f9e5b', '#d6457a', '#4a7fd4', '#9c6b3a'];
+const TURNOS_BASE = {explorador: ['04:43'], consejero: ['10:22', '15:22', '20:22'], dev: ['22:17'], seguridad: ['dom 02:12']};
+let REG = null, REPOS = [], PENDIENTES = [];
+function applyRegistry(reg) {
+  REG = reg;
+  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE});
+  REPOS = reg.proyectos.filter(p => p.estado !== 'pendiente').map(map);
+  PENDIENTES = reg.proyectos.filter(p => p.estado === 'pendiente').map(map);
+}
 const ROLES = {
   explorador: {nombre: 'Shisui', puesto: 'Explorador', modelo: 'Sonnet', hace: 'Recorre el código y los docs del proyecto y propone el siguiente paso pequeño, con su prioridad.', hair: '#2a1f1a', shirt: '#f6c453', look: 'rizos'},
   consejero: {nombre: 'Itachi', puesto: 'Consejero y Arquitecto', modelo: 'Opus', hace: 'Cuestiona tus ideas, conversa contigo cada propuesta y, cuando apruebas una tarea, escribe el plan que el Dev ejecuta. También dirige la retro semanal.', hair: '#2b2b3a', shirt: '#b08cff', look: 'coleta'},
@@ -21,6 +26,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 let state = store.get('fabrica3', {repos: {}, fetchedAt: 0});
+applyRegistry(store.get('fabrica-registro', {sede: 'session_01RhVe33VXjDtec5jfWbScXS', proyectos: []}));
 let filters = store.get('fabrica-filtros', {repo: 'todos', tipo: 'todo', prio: 'todas'}), lastCount = -1;
 let token = store.get('fabrica-token', '');
 (() => { const m = location.hash.match(/[#&]t=([A-Za-z0-9_]+)/); if (m) { token = m[1]; store.set('fabrica-token', token); history.replaceState(null, '', location.pathname + location.search); } })();
@@ -122,10 +128,11 @@ let loading = false;
 async function load() {
   if (loading) return; loading = true;
   try {
+    try { const r = await fetch('proyectos.json', {cache: 'no-store'}); if (r.ok) { const reg = await r.json(); const local = store.get('fabrica-registro', null); if (!local || reg.proyectos.length >= local.proyectos.length) { applyRegistry(reg); store.set('fabrica-registro', reg); } } } catch (e) {}
     for (const R of REPOS) {
       const [issues, pulls] = await Promise.all([gh(`${R.name}/issues?state=open&per_page=100`), gh(`${R.name}/pulls?state=open&per_page=50`)]);
       const fab = issues.filter(i => !i.pull_request && isMine(i) && i.labels.some(l => l.name.startsWith('fabrica:')));
-      const bit = fab.find(i => has(i, 'bitacora')), man = fab.find(i => has(i, 'manual'));
+      const bit = fab.find(i => has(i, 'bitacora')), man = fab.find(i => has(i, 'manual')), dos = fab.find(i => has(i, 'dossier'));
       const estados = {};
       if (bit) {
         const cs = await gh(`${R.name}/issues/${bit.number}/comments?since=${new Date(Date.now() - 7 * 864e5).toISOString()}&per_page=100`);
@@ -139,9 +146,10 @@ async function load() {
       }
       const slim = i => ({n: i.number, title: i.title, created: i.created_at, at: i.updated_at, prio: prioOf(i), comments: i.comments, body: (i.body || '').slice(0, 400)});
       state.repos[R.name] = {
-        activo: !!(man && has(man, 'activo')), manualN: man ? man.number : null, bitN: bit ? bit.number : null,
+        activo: !!(man && has(man, 'activo')), manualN: man ? man.number : null, bitN: bit ? bit.number : null, dossierN: dos ? dos.number : null,
         props: fab.filter(i => has(i, 'propuesta') && !has(i, 'aprobada')).map(slim),
-        queue: fab.filter(i => has(i, 'aprobada') && !has(i, 'en-curso')).map(slim),
+        queue: fab.filter(i => has(i, 'aprobada') && !has(i, 'planificada') && !has(i, 'en-curso')).map(slim),
+        planned: fab.filter(i => has(i, 'planificada') && !has(i, 'en-curso')).map(slim),
         running: fab.filter(i => has(i, 'en-curso')).map(slim),
         ideas: fab.filter(i => has(i, 'idea')).map(slim),
         prs, estados,
@@ -151,7 +159,7 @@ async function load() {
   } catch (e) {
     notice(e.message + (state.fetchedAt ? ' Mostrando datos de ' + ago(new Date(state.fetchedAt).toISOString()) + '.' : ''));
   }
-  loading = false; render(); schedule();
+  loading = false; fillSelects(); render(); schedule();
 }
 let timer;
 function schedule() {
@@ -162,7 +170,7 @@ function schedule() {
 function notice(t) { $('notice').textContent = t; }
 
 // ---------- el equipo ----------
-const EMPTY = {props: [], queue: [], running: [], ideas: [], prs: [], estados: {}};
+const EMPTY = {props: [], queue: [], planned: [], running: [], ideas: [], prs: [], estados: {}};
 const active = () => REPOS.find(R => (state.repos[R.name] || {}).activo) || null;
 function team() {
   const R = active(), d = R ? state.repos[R.name] : EMPTY;
@@ -172,11 +180,14 @@ function team() {
     let s = 'sleep', t;
     if (!R) t = 'Sin proyecto activo. Elige uno arriba.';
     else if (e && e.estado.startsWith('trabaj') && fresh) { s = 'work'; t = e.paso || 'Trabajando'; }
+    else if ((role === 'explorador' || role === 'consejero') && !d.dossierN && state.fetchedAt) { s = 'queue'; t = 'Onboarding pendiente: estudiarán el proyecto completo en el próximo turno'; }
     else if (role === 'explorador' && d.props.length) { s = 'wait'; t = `${d.props.length} propuesta(s) esperando tu decisión`; }
+    else if (role === 'consejero' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) aprobada(s) por planificar`; }
     else if (role === 'consejero' && d.ideas.length) { s = 'wait'; t = `${d.ideas.length} idea(s) en conversación contigo`; }
-    else if (role === 'dev' && d.running.length) { s = 'wait'; t = `#${d.running[0].n} en curso`; }
-    else if ((role === 'dev' || role === 'revisor') && d.prs.length) { s = 'wait'; t = `${d.prs.length} PR esperando que decidas`; }
-    else if (role === 'dev' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) en cola para las ${turnos(R.turnos.dev)}`; }
+    else if (role === 'dev' && d.running.length) { s = 'wait'; t = `#${d.running[0].n} a medio camino`; }
+    else if (role === 'dev' && d.planned.length) { s = 'queue'; t = `${d.planned.length} tarea(s) planificada(s) para su turno de las ${turnos(R.turnos.dev)}`; }
+    else if (role === 'revisor' && d.prs.some(p => !p.veredicto)) { s = 'queue'; t = 'PR por revisar'; }
+    else if (role === 'revisor' && d.prs.length) { s = 'wait'; t = `${d.prs.length} PR revisado(s), esperando que decidas`; }
     else t = role === 'revisor' ? 'Libre. Entra justo después del Dev' : `Libre. Próximo turno ${turnos(R.turnos[role])}`;
     return {role, ...meta, modelo: role === 'revisor' && R ? R.revisor : meta.modelo, s, t, e, repo: R};
   });
@@ -187,7 +198,7 @@ const SLABEL = {work: 'Trabajando ahora', wait: 'Esperándote', queue: 'En cola'
 const style = () => document.body.dataset.style;
 function render() {
   const R = active();
-  $('proyecto').innerHTML = R ? `<i style="background:${R.color}"></i>${esc(R.short)} <span>▾</span>` : 'Elegir proyecto <span>▾</span>';
+  $('proyecto').innerHTML = R ? `<i style="background:${R.color}"></i>${esc(R.nombre)} <span>▾</span>` : 'Elegir proyecto <span>▾</span>';
   Scene.refresh();
   $('team').innerHTML = `<div class="card"><h2 style="margin-top:0">Equipo${R ? ' · ' + esc(R.short) : ''}</h2>${team().map(a => {
     const act = a.s === 'sleep' && R ? Scene.activity(a.role) : '';
@@ -199,8 +210,6 @@ function render() {
     const d = state.repos[Rx.name]; if (!d) continue;
     for (const p of d.prs) rows.push({R: Rx, p, tipo: 'pr', tag: p.veredicto ? 'Revisor: ' + p.veredicto.toLowerCase() : 'PR sin revisar aún', cls: 't-pr'});
     for (const p of d.props) rows.push({R: Rx, p, tipo: 'propuesta', tag: 'Propuesta', cls: 't-prop'});
-    for (const p of d.running) pipe += item(Rx, p, 't-run', 'En curso');
-    for (const p of d.queue) pipe += item(Rx, p, 't-ok', 'Aprobada, en cola');
     for (const p of d.ideas) ideas += item(Rx, p, 't-prop', `Idea · ${p.comments} mensaje(s)`);
   }
   const f = filters, n = rows.length;
@@ -208,7 +217,10 @@ function render() {
     .sort((x, y) => new Date(x.p.created) - new Date(y.p.created));
   $('fcount').textContent = n ? `${shown.length} de ${n} · más antiguas primero` : '';
   $('inbox').innerHTML = shown.map(r => item(r.R, r.p, r.cls, r.tag)).join('') || (n ? '<p class="empty">Nada con estos filtros.</p>' : '<p class="empty">Nada pendiente. Los agentes no te necesitan ahora.</p>');
-  $('pipeline').innerHTML = pipe || '<p class="empty">No hay tareas aprobadas ni en curso.</p>';
+  const A = active(), dA = A ? state.repos[A.name] || EMPTY : EMPTY;
+  const cols = [['Aprobadas', 'Itachi las planifica', dA.queue, 't-ok'], ['Planificadas', 'Sasuke las implementa', dA.planned, 't-ok'], ['En código', 'Sasuke trabajando', dA.running, 't-run'], ['En revisión', 'Madara revisa', dA.prs.filter(p => !p.veredicto), 't-pr']];
+  pipe = A ? `<div class="kanban">${cols.map(([t, sub, list, cls]) => `<div class="col"><h4>${t} <b>${list.length}</b></h4><small>${sub}</small>${list.sort((x, y) => new Date(x.created) - new Date(y.created)).map(i => `<button class="mini" data-open="${A.name}/${i.n}${i.pr ? '/pr' : ''}">#${i.n} ${esc(i.title)}</button>`).join('') || '<p class="empty">—</p>'}</div>`).join('')}</div>` : '';
+  $('pipeline').innerHTML = pipe || '<p class="empty">Elige un proyecto activo.</p>';
   $('ideas').innerHTML = ideas || '<p class="empty">Aún no has traído ideas. Escribe la primera arriba.</p>';
   $('badge').textContent = n || '';
   if (n > lastCount && lastCount >= 0 && store.get('fabrica-sonido', false)) chime();
@@ -218,7 +230,7 @@ function render() {
   for (const id of ['t-repo', 'i-repo']) if (!$(id).dataset.touched && R) $(id).value = R.name;
 }
 function item(R, i, cls, tag) {
-  return `<button class="item" data-open="${R.name}/${i.n}${i.pr ? '/pr' : ''}"><span class="tag ${cls}">${esc(tag)}</span>${i.prio ? `<span class="tag p-${i.prio}">prioridad ${i.prio}</span>` : ''}<b>#${i.n} ${esc(i.title)}</b><span class="meta">${esc(R.short)}${(active() || {}).name === R.name ? '' : ' · en pausa'} · creada ${ago(i.created || i.at)}</span>${i.body ? `<span class="meta">${esc(clean(i.body).replace(/[#*`>|_]/g, '').replace(/\s+/g, ' ').slice(0, 180))}…</span>` : ''}<span class="more">Abrir →</span></button>`;
+  return `<button class="item" data-open="${R.name}/${i.n}${i.pr ? '/pr' : ''}"><span class="tag ${cls}">${esc(tag)}</span>${i.prio ? `<span class="tag p-${i.prio}">prioridad ${i.prio}</span>` : ''}<b>#${i.n} ${esc(i.title)}</b><span class="meta">${esc(R.nombre)}${(active() || {}).name === R.name ? '' : ' · en pausa'} · creada ${ago(i.created || i.at)}</span>${i.body ? `<span class="meta">${esc(clean(i.body).replace(/[#*`>|_]/g, '').replace(/\s+/g, ' ').slice(0, 180))}…</span>` : ''}<span class="more">Abrir →</span></button>`;
 }
 function chime() { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.type = 'square'; o.frequency.setValueAtTime(880, c.currentTime); o.frequency.setValueAtTime(1320, c.currentTime + .09); g.gain.setValueAtTime(.06, c.currentTime); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + .25); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + .26); } catch (e) {} }
 
@@ -284,10 +296,32 @@ async function openItem(repo, n, kind) {
 }
 function openProjects() {
   const cur = active();
-  sheet(`<h3>Proyecto activo</h3><p>El equipo trabaja en un solo proyecto a la vez. Al cambiar, el otro queda en pausa desde su próximo turno; lo que estaba a medio camino se retoma cuando vuelvas a activarlo.</p>
-    ${REPOS.map(R => { const d = state.repos[R.name] || EMPTY, pend = d.props.length + d.prs.length + d.queue.length + d.ideas.length;
-      return `<div class="item"><span class="tag" style="color:${R.color}">${R.name === (cur || {}).name ? 'activo' : 'en pausa'}</span><b>${esc(R.short)}</b><span class="meta">${pend} pendiente(s)</span>${R.name === (cur || {}).name ? '' : `<div class="acts"><button class="primary" data-act="activar" data-repo="${R.name}">Trabajar en este</button></div>`}</div>`; }).join('')}
-    <small>Para conectar un proyecto nuevo, pídemelo en la conversación con Claude: hay que crear su sede, su manual y sus turnos.</small>`);
+  sheet(`<h3>Proyectos</h3><p>El equipo trabaja en un solo proyecto a la vez. Al cambiar, el otro queda en pausa desde su próximo turno; lo que estaba a medio camino se retoma cuando vuelvas.</p>
+    ${REPOS.map(R => { const d = state.repos[R.name] || EMPTY, pend = d.props.length + d.prs.length + d.queue.length + d.planned.length + d.ideas.length, on = R.name === (cur || {}).name;
+      return `<div class="item"><span class="tag" style="color:${R.color}">${on ? 'activo' : 'en pausa'}</span><b>${esc(R.nombre)}</b><span class="meta">${esc(R.name)} · ${pend} pendiente(s) · ${d.dossierN ? 'el equipo ya lo conoce' : 'onboarding pendiente'}</span><div class="acts">${on ? '' : `<button class="primary" data-act="activar" data-repo="${R.name}">Trabajar en este</button>`}${d.dossierN ? `<button data-open="${R.name}/${d.dossierN}">Qué saben de él</button>` : ''}</div></div>`; }).join('')}
+    ${PENDIENTES.map(P => `<div class="item"><span class="tag t-prop">por conectar</span><b>${esc(P.nombre)}</b><span class="meta">${esc(P.name)}</span><div class="acts"><a class="btn primary" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Pedir a la Sede que lo conecte</a></div><small>Escríbele: «Conecta el proyecto ${esc(P.nombre)}». Dar acceso de escritura a un repo nuevo lo aprueba siempre una persona.</small></div>`).join('')}
+    <h2>Agregar proyecto</h2>
+    <form id="addproj" class="card">
+      <label for="np-url">Link del repo en GitHub</label><input id="np-url" required placeholder="https://github.com/gonzalolavin99/mi-app" inputmode="url" autocomplete="off">
+      <label for="np-nombre">Nombre para identificarlo</label><input id="np-nombre" required maxlength="40" placeholder="Ej: Portafolio">
+      <label>Color</label><div class="paleta">${PALETA.map((c, i) => `<label><input type="radio" name="np-color" value="${c}" ${i === (REPOS.length + PENDIENTES.length) % PALETA.length ? 'checked' : ''}><i style="background:${c}"></i></label>`).join('')}</div>
+      <button class="primary" type="submit">Agregar</button>
+      <small>Queda «por conectar» hasta que la Sede lo conecta: le crea su manual y sus turnos. Después, la primera vez que lo actives, el equipo lo estudia completo (onboarding) antes de proponer nada.</small>
+    </form>`);
+}
+async function addProject(url, nombre, color) {
+  const m = url.trim().match(/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[\/?#].*)?$/i);
+  if (!m) throw new Error('Ese link no parece un repo de GitHub.');
+  if (m[1].toLowerCase() !== OWNER) throw new Error('Por ahora solo se pueden agregar repos de tu cuenta (' + OWNER + ').');
+  const repo = m[2];
+  if (REPOS.concat(PENDIENTES).some(r => r.name === repo)) throw new Error('Ese repo ya está en la fábrica.');
+  await gh(repo);
+  const f = await gh('fabrica-oficina/contents/proyectos.json');
+  const reg = JSON.parse(decodeURIComponent(escape(atob(f.content.replace(/\n/g, '')))));
+  reg.proyectos.push({repo, nombre: nombre.trim(), color, estado: 'pendiente', revisor: 'Opus', despliega: false});
+  const body = JSON.stringify(reg, null, 2) + '\n';
+  await gh('fabrica-oficina/contents/proyectos.json', {method: 'PUT', body: {message: `Agregar proyecto ${nombre.trim()} (por conectar)`, content: btoa(unescape(encodeURIComponent(body))), sha: f.sha}});
+  applyRegistry(reg); store.set('fabrica-registro', reg);
 }
 function openSettings() {
   sheet(`
@@ -298,7 +332,7 @@ function openSettings() {
       <input id="tok" type="password" autocomplete="off" value="${esc(token)}" placeholder="github_pat_…">
       <button class="primary" type="submit">Guardar en este dispositivo</button>
     </form>
-    <small>Permisos necesarios en hierro-y-ceniza y speech-therapy-hub, en «Read and write»: Issues, Pull requests y Contents. Se guarda solo en este navegador; bórrala dejando el campo vacío.</small>
+    <small>Permisos en «Read and write»: Issues, Pull requests y Contents, sobre tus proyectos y sobre <b>fabrica-oficina</b> (ahí se guarda la lista de proyectos). Si la llave es por repos seleccionados, agrega cada proyecto nuevo a la llave. Se guarda solo en este navegador; bórrala dejando el campo vacío.</small>
     <label class="check"><input id="sonido" type="checkbox" ${store.get('fabrica-sonido', false) ? 'checked' : ''}> Sonar cuando llegue algo nuevo a la bandeja</label>`);
 }
 
@@ -343,6 +377,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target;
+  if (f.id === 'addproj') { if (needToken()) return; try { await addProject($('np-url').value, $('np-nombre').value, (f.querySelector('input[name=np-color]:checked') || {}).value || PALETA[0]); notice('Proyecto agregado. Ahora pídele a la Sede que lo conecte.'); openProjects(); } catch (err) { alert(err.message); } return; }
   if (f.id === 'tokform') { token = $('tok').value.trim(); store.set('fabrica-token', token); $('sheet').close(); notice(token ? 'Llave guardada.' : 'Llave borrada.'); return load(); }
   if (f.id === 'task') { if (await newIssue($('t-repo').value, $('t-title').value.trim(), ($('t-body').value.trim() || '(sin detalle)') + '\n\n— Tarea directa de Gonzalo desde la oficina.', ['fabrica:aprobada'])) f.reset(); return; }
   if (f.id === 'idea') { if (await newIssue($('i-repo').value, $('i-title').value.trim(), ($('i-body').value.trim() || '(sin detalle)') + '\n\n— Idea de Gonzalo para el Consejero.', ['fabrica:idea'])) f.reset(); return; }
@@ -356,9 +391,12 @@ $('settings').addEventListener('click', openSettings);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - state.fetchedAt > 60000) load(); });
 
 document.body.dataset.style = store.get('fabrica-style', 'pixel') === 'pixel' ? 'pixel' : 'oscuro';
-for (const id of ['t-repo', 'i-repo']) $(id).innerHTML = REPOS.map(R => `<option value="${R.name}">${R.short}</option>`).join('');
-$('f-repo').innerHTML = '<option value="todos">Todos los proyectos</option>' + REPOS.map(R => `<option value="${R.name}">${R.short}</option>`).join('');
-for (const k of ['repo', 'tipo', 'prio']) $('f-' + k).value = filters[k];
+function fillSelects() {
+  for (const id of ['t-repo', 'i-repo']) { const v = $(id).value; $(id).innerHTML = REPOS.map(R => `<option value="${R.name}">${esc(R.nombre)}</option>`).join(''); if (v) $(id).value = v; }
+  $('f-repo').innerHTML = '<option value="todos">Todos los proyectos</option>' + REPOS.map(R => `<option value="${R.name}">${esc(R.nombre)}</option>`).join('');
+  for (const k of ['repo', 'tipo', 'prio']) $('f-' + k).value = filters[k];
+}
+fillSelects();
 Scene.init($('scene'), {getState: () => [team().map(a => ({role: a.role, s: a.s, accion: a.e && a.e.accion, paso: a.e && a.e.paso}))], roles: ROLES, isDay, project: () => { const R = active(); return R ? {name: R.short, color: R.color} : {name: 'SIN PROYECTO', color: '#777'}; }});
 Scene.setTheme(style());
 render(); setInterval(render, 20000);

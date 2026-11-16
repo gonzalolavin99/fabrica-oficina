@@ -1,0 +1,9 @@
+{
+  "sede": "session_01RhVe33VXjDtec5jfWbScXS",
+  "proyectos": [
+    {"repo": "hierro-y-ceniza", "nombre": "Hierro y Ceniza", "color": "#c0503a", "estado": "listo", "session": "session_01RhVe2yqKVjLJN25naPr6my", "revisor": "Sonnet", "despliega": false,
+     "turnos": {"explorador": ["04:43"], "consejero": ["10:22", "15:22", "20:22"], "dev": ["22:17"], "seguridad": ["dom 02:12"]}},
+    {"repo": "speech-therapy-hub", "nombre": "TherapyHub", "color": "#3aa0a8", "estado": "listo", "session": "session_01RhVe2zJLh7B9rJxR5sU9UK", "revisor": "Opus", "despliega": true,
+     "turnos": {"explorador": ["04:52"], "consejero": ["10:31", "15:31", "20:31"], "dev": ["22:26"], "seguridad": ["dom 02:24"]}}
+  ]
+}

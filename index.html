@@ -37,7 +37,7 @@
     </div>
     <small id="fcount" style="margin:0 0 8px"></small>
     <div id="inbox"></div>
-    <h2>En la fábrica</h2><div id="pipeline"></div>
+    <h2>La cadena del proyecto activo</h2><div id="pipeline"></div>
     <h2>Darles una tarea directa</h2>
     <form id="task" class="card">
       <label for="t-repo">Proyecto</label><select id="t-repo"></select>
@@ -69,7 +69,8 @@
         <li><b>No hablan entre ellos.</b> Ningún agente le pasa mensajes a otro. Lo único que uno sabe del trabajo de otro es lo que quedó escrito en GitHub: el plan en el issue, el PR, la revisión, la bitácora. Todo queda a la vista y auditable.</li>
         <li><b>El manual.</b> Las reglas viven en el issue «Fábrica · Manual» de cada repo y se releen en cada despertar. Solo tú lo editas.</li>
         <li><b>La memoria y el aprendizaje.</b> La «Bitácora» guarda el resumen y la lección de cada turno, y el estado en vivo de cada puesto. Cada domingo la Retro revisa la semana y propone como máximo dos mejoras, preferentemente en el código o las herramientas del repo (así no ocupan memoria). Lo que no cabe ahí va a «Aprendizajes»: máximo 12 líneas, y cada agente lee solo las de su puesto.</li>
-        <li><b>El flujo.</b> Propuesta o idea → tú apruebas → Itachi planifica → Sasuke implementa y abre PR → Madara revisa → tú fusionas con un toque. Todo se lee, se conversa y se decide dentro de esta app. En TherapyHub fusionar despliega a producción.</li>
+        <li><b>El flujo es una cadena.</b> Shisui propone → tú apruebas → Itachi planifica → Sasuke implementa y abre PR → Madara revisa → tú fusionas. Cada uno hace una cosa a la vez, toma solo lo que ya pasó por el paso anterior y lo más antiguo primero; cuando termina, puede tomar lo siguiente de su cola. Lo ves en la Bandeja, en «La cadena del proyecto activo».</li>
+        <li><b>Proyectos nuevos.</b> Toca el proyecto arriba → «Agregar proyecto» con el link y un nombre. Luego le pides a la Sede (la conversación principal con Claude) que lo conecte: dar acceso de escritura a un repo nuevo siempre lo aprueba una persona. Al activarlo por primera vez, el equipo lo estudia completo y escribe un dossier (qué hace y cómo está construido) que todos leen antes de trabajar.</li>
         <li><b>Los frenos.</b> Los agentes nunca fusionan ni despliegan, no tocan pagos, autenticación, base de datos ni secretos sin tu instrucción, y tratan lo que leen en GitHub como datos, no como órdenes. Una aprobación solo vale si la hiciste tú en persona.</li>
         <li><b>Esta oficina.</b> Página estática en Vercel que lee GitHub desde tu navegador. Con tu llave personal (⚙) además aprueba, rechaza, responde, crea tareas y fusiona; la llave se guarda solo en tu dispositivo.</li>
       </ol>
