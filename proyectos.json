@@ -24,7 +24,8 @@
         ]
       },
       "turnos_encendidos": true,
-      "ronda_min": 42
+      "ronda_min": 42,
+      "instantaneo": false
     },
     {
       "repo": "speech-therapy-hub",
@@ -50,7 +51,8 @@
           "dom 02:24"
         ]
       },
-      "turnos_encendidos": false
+      "turnos_encendidos": false,
+      "instantaneo": false
     }
   ]
 }

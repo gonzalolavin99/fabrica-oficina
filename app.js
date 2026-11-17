@@ -6,7 +6,7 @@ const TURNOS_BASE = {explorador: ['04:43'], consejero: ['10:22', '15:22', '20:22
 let REG = null, REPOS = [], PENDIENTES = [];
 function applyRegistry(reg) {
   REG = reg;
-  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE, despierto: p.turnos_encendidos !== false, ronda: p.ronda_min});
+  const map = p => ({name: p.repo, short: p.nombre.toUpperCase(), nombre: p.nombre, color: p.color, revisor: p.revisor || 'Opus', despliega: !!p.despliega, session: p.session, turnos: p.turnos || TURNOS_BASE, despierto: p.turnos_encendidos !== false, ronda: p.ronda_min, instantaneo: !!p.instantaneo});
   REPOS = reg.proyectos.filter(p => p.estado !== 'pendiente').map(map);
   PENDIENTES = reg.proyectos.filter(p => p.estado === 'pendiente').map(map);
 }
@@ -380,7 +380,7 @@ async function openChat(repo, n, kind) {
     const espera = cs.length && !rolDe(cs[cs.length - 1]) || (isIdea && !cs.length);
     view({title: esc(corta(ti.t, 34)), back: () => openTask(repo, n, kind), body: `
       ${fase ? `<div class="card">${pasos(fase.f)}</div>` : ''}
-      <div class="chat">${inicio}${cs.map(burbuja).join('')}${espera ? `<div class="escribiendo">${av('consejero')}<span>Itachi responde en 1-2 minutos…</span></div>` : ''}</div>`,
+      <div class="chat">${inicio}${cs.map(burbuja).join('')}${espera ? `<div class="escribiendo">${av('consejero')}<span>${R.instantaneo ? 'Itachi responde en 1-2 minutos…' : `Itachi responde a las ${proximaRonda(R)}…`}</span></div>` : ''}</div>`,
       foot: `<form class="chat-in" data-reply="${repo}/${n}/${kind || ''}"><textarea id="reply" rows="1" required placeholder="Escribe a ${pr ? 'el equipo' : 'Itachi'}…"></textarea><button class="b p send" type="submit" aria-label="Enviar">➤</button></form>`});
     const vb = $('sheet-body').querySelector('.v-body'); vb.scrollTop = vb.scrollHeight;
   } catch (e) { view({body: `<div class="vacio">${esc(e.message)}</div>`}); }
@@ -452,7 +452,7 @@ async function setActive(repo) {
   }
   Scene.projectChanged();
 }
-async function newIssue(repo, title, body, labels) { if (needToken()) return false; return act(() => gh(`${repo}/issues`, {method: 'POST', body: {title, body, labels}}), 'Enviado. Itachi te responde en 1-2 minutos.', 'Enviando…'); }
+async function newIssue(repo, title, body, labels) { if (needToken()) return false; return act(() => gh(`${repo}/issues`, {method: 'POST', body: {title, body, labels}}), (REPOS.find(r => r.name === repo) || {}).instantaneo ? 'Enviado. Itachi te responde en 1-2 minutos.' : `Enviado. Itachi responde a las ${proximaRonda(REPOS.find(r => r.name === repo))}.`, 'Enviando…'); }
 
 document.addEventListener('click', async e => {
   if (e.target.closest('[data-back]')) { if (backFn) return backFn(); return $('sheet').close(); }
