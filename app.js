@@ -351,11 +351,11 @@ async function openTask(repo, n, kind) {
     const diff = files ? acordeon('🧩', `Cambios en ${files.length} archivo${files.length === 1 ? '' : 's'}`, files.map(f => `<details class="diff"><summary><code>${esc(f.filename)}</code> <span class="add">+${f.additions}</span> <span class="del">−${f.deletions}</span></summary><pre>${(f.patch || '(sin vista previa)').split('\n').slice(0, 300).map(l => `<span class="${l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : l.startsWith('@@') ? 'hunk' : ''}">${esc(l)}</span>`).join('\n')}</pre></details>`).join('')) : '';
     const foot = pr ? `<button class="b p" data-act="fusionar" data-repo="${repo}" data-n="${n}">${R.despliega ? 'Fusionar y desplegar' : 'Fusionar'}</button><button class="b" data-chat="${repo}/${n}/pr">Preguntar</button>`
       : isProp ? `<button class="b p" data-act="aprobar" data-repo="${repo}" data-n="${n}">Aprobar</button><button class="b" data-chat="${repo}/${n}">Preguntar</button><button class="b g" data-act="rechazar" data-repo="${repo}" data-n="${n}">Rechazar</button>`
-      : `<button class="b p" data-chat="${repo}/${n}${pr ? '/pr' : ''}">Abrir chat</button>${isIdea ? `<button class="b g" data-act="cerrar" data-repo="${repo}" data-n="${n}">Cerrar idea</button>` : ''}`;
+      : `<button class="b" data-chat="${repo}/${n}${pr ? '/pr' : ''}">💬 Chat (solo si quieres cambiar algo)</button>${isIdea ? `<button class="b g" data-act="cerrar" data-repo="${repo}" data-n="${n}">Cerrar idea</button>` : ''}`;
     view({title: '', right: prio ? `<span class="tag ${prio}">${prio.toUpperCase()}</span>` : '', body: `
       <div class="tags">${ti.paso ? `<span class="tag">${ti.paso}</span>` : ''}<span class="tag">${pr ? 'Cambio listo' : isIdea ? 'Idea' : isProp ? 'Propuesta' : 'En la cadena'}</span><span class="tag">#${n} · ${ago(it.created_at)}</span></div>
       <h3 class="v-h">${esc(ti.t)}</h3>
-      ${fase ? `<div class="card">${pasos(fase.f)}<div class="s">${esc(fase.q)}</div></div>` : ''}
+      ${fase ? `<div class="card">${pasos(fase.f)}<div class="s">${esc(fase.q)}</div>${fase.f < 4 ? '<div class="ok-msg">✓ No tienes que hacer nada: avanza solo. Usa el chat solo si quieres cambiar algo.</div>' : ''}</div>` : ''}
       <h2>En corto</h2>${corto}${quien}
       ${diff}
       ${plan ? acordeon('🗺', 'Plan de Itachi', md(plan.body)) : ''}

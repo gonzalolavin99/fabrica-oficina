@@ -125,3 +125,4 @@ body.busy button,body.busy .b{pointer-events:none;opacity:.6}
 .spin-wrap{display:flex;gap:10px;align-items:center;justify-content:center;padding:40px 0;color:var(--dim)}
 #refresh.girando{animation:girar .9s linear infinite}
 @media (prefers-reduced-motion:reduce){.spin,#refresh.girando{animation-duration:2s}}
+.ok-msg{margin-top:10px;padding:10px 12px;border-radius:12px;background:#12301e;color:var(--ok);font-size:14px;font-weight:600}
