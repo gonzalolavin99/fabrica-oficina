@@ -61,7 +61,7 @@ code{background:var(--bg);padding:1px 5px}
 .thread{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
 .msg{padding:8px 10px;margin:6px 0;border-left:3px solid var(--line);white-space:pre-wrap;font-size:14px}
 .msg.bot{border-color:var(--info)}.msg.me{border-color:var(--accent)}
-.msg b{display:block;font-size:11px;color:var(--dim);font-weight:400}
+.msg > b{display:block;font-size:11px;color:var(--dim);font-weight:400}
 nav#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--panel);border-top:2px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav#tabs button{flex:1;border:0;border-radius:0;background:none;padding:8px 2px;font-size:11px;color:var(--dim);min-height:58px;position:relative}
 nav#tabs button i{display:block;font-style:normal;font-size:19px;line-height:1.2}
@@ -135,3 +135,12 @@ button.mini{display:block;width:100%;text-align:left;font-size:12px;padding:6px 
 .fases span.ok{background:var(--line);color:var(--ink)}
 .fases span.now{background:var(--accent);color:var(--on-accent);font-weight:700}
 .md hr{border:0;border-top:1px solid var(--line);margin:10px 0}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:girar .7s linear infinite;vertical-align:-3px}
+@keyframes girar{to{transform:rotate(360deg)}}
+#loader{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translateX(-50%);z-index:50;display:none;gap:10px;align-items:center;background:var(--panel);border:2px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+#loader.on{display:flex}
+body.busy button,body.busy a.btn{pointer-events:none;opacity:.6}
+body.busy #sheet button{pointer-events:none;opacity:.6}
+body.busy dialog::backdrop{cursor:progress}
+.spin-wrap{display:flex;gap:10px;align-items:center;padding:24px 0;color:var(--dim)}
+#refresh.girando{animation:girar .9s linear infinite}

@@ -22,6 +22,7 @@
   <button id="settings" class="icon" aria-label="Ajustes">⚙</button>
 </header>
 <div id="notice" role="status"></div>
+<div id="loader" role="status" aria-live="polite"><i class="spin"></i><span>Guardando…</span></div>
 <main>
   <section id="tab-oficina" class="tab">
     <canvas id="scene" aria-label="Oficina vista desde arriba. La lista de abajo tiene la misma información."></canvas>
@@ -56,7 +57,7 @@
       <label for="i-title">Tu idea en una frase</label><input id="i-title" required maxlength="120" placeholder="Ej: Un modo foto para el juego">
       <label for="i-body">Por qué la quieres y qué imaginas</label><textarea id="i-body"></textarea>
       <button class="primary" type="submit">Llevar al Consejero</button>
-      <small>Itachi la cuestiona, te hace preguntas y, cuando quede clara, la parte en propuestas que tú apruebas. Responde tres veces al día, o al instante si le hablas en vivo.</small>
+      <small>Itachi te responde en 1-2 minutos con su opinión: si es buena, qué le cuestiona y qué matices ve. Cuando quede clara, el equipo la parte en propuestas que tú apruebas.</small>
     </form>
     <h2>Ideas en conversación</h2><div id="ideas"></div>
   </section>

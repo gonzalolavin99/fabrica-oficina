@@ -113,7 +113,7 @@ const isAgent = x => !!x.performed_via_github_app || /^\s*🤖/.test(x.body || '
 const has = (i, l) => i.labels.some(x => x.name === 'fabrica:' + l);
 const prioOf = i => { const l = i.labels.find(x => x.name.startsWith('prioridad:')); return l ? l.name.slice(10) : ''; };
 function author(c) {
-  if (!isMine(c)) return {who: 'Cuenta externa @' + c.user.login + ' · los agentes la ignoran', cls: 'ext'};
+  if (!isMine(c) && !(c.user.login === 'github-actions[bot]' && /^\s*🤖/.test(c.body || ''))) return {who: 'Cuenta externa @' + c.user.login + ' · los agentes la ignoran', cls: 'ext'};
   if (!isAgent(c)) return {who: 'Tú', cls: 'me'};
   const m = (c.body || '').match(/^\s*🤖\s*([^:\n]{1,40}):/), key = m && PUESTO_A_ROL[m[1].trim().toLowerCase().split(/[\s·,]/)[0]];
   return key ? {who: `${ROLES[key].nombre} · ${ROLES[key].puesto}`, cls: 'bot'} : {who: 'Equipo', cls: 'bot'};
@@ -128,7 +128,7 @@ function parseEstado(body) {
 
 let loading = false;
 async function load() {
-  if (loading) return; loading = true;
+  if (loading) return; loading = true; $('refresh').classList.add('girando');
   try {
     try { const r = await fetch('proyectos.json', {cache: 'no-store'}); if (r.ok) { const reg = await r.json(); const local = store.get('fabrica-registro', null); if (!local || reg.proyectos.length >= local.proyectos.length) { applyRegistry(reg); store.set('fabrica-registro', reg); } } } catch (e) {}
     for (const R of REPOS) {
@@ -160,6 +160,7 @@ async function load() {
         props: fab.filter(i => has(i, 'propuesta') && !has(i, 'aprobada')).map(slim),
         queue: fab.filter(i => has(i, 'aprobada') && !has(i, 'planificada') && !has(i, 'en-curso')).map(slim),
         planned: fab.filter(i => has(i, 'planificada') && !has(i, 'en-curso')).map(slim),
+        planificando: fab.filter(i => has(i, 'planificando')).map(slim),
         running: fab.filter(i => has(i, 'en-curso')).map(slim),
         ideas: fab.filter(i => has(i, 'idea')).map(slim),
         prs, estados,
@@ -169,7 +170,7 @@ async function load() {
   } catch (e) {
     notice(e.message + (state.fetchedAt ? ' Mostrando datos de ' + ago(new Date(state.fetchedAt).toISOString()) + '.' : ''));
   }
-  loading = false; fillSelects(); render(); schedule();
+  loading = false; $('refresh').classList.remove('girando'); fillSelects(); render(); schedule();
 }
 let timer;
 function schedule() {
@@ -192,6 +193,7 @@ function team() {
     else if (e && e.estado.startsWith('trabaj') && fresh) { s = 'work'; t = e.paso || 'Trabajando'; }
     else if ((role === 'explorador' || role === 'consejero') && !d.dossierN && state.fetchedAt) { s = 'queue'; t = 'Onboarding pendiente: estudiarán el proyecto completo en el próximo turno'; }
     else if (role === 'explorador' && d.props.length) { s = 'wait'; t = `${d.props.length} propuesta(s) esperando tu decisión`; }
+    else if (role === 'consejero' && (d.planificando || []).length) { s = 'work'; t = `Escribiendo el plan de #${d.planificando[0].n} (al instante)`; }
     else if (role === 'consejero' && d.porResponder) { s = 'queue'; t = `${d.porResponder} mensaje(s) tuyo(s) por responder: lo hace en la próxima ronda (${proximaRonda(R)})`; }
     else if (role === 'consejero' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) aprobada(s) por planificar`; }
     else if (role === 'consejero' && d.ideas.length) { s = 'wait'; t = `${d.ideas.length} idea(s) abiertas: esperando tu respuesta`; }
@@ -291,7 +293,7 @@ function openAgent(role) {
     <small>«Hablar en vivo» abre la conversación del equipo en la app de Claude: pregúntale en qué está o pídele cambios al instante.</small>` : ''}`);
 }
 async function openItem(repo, n, kind) {
-  const R = REPOS.find(r => r.name === repo); sheet('<p class="empty">Cargando…</p>');
+  const R = REPOS.find(r => r.name === repo); sheet('<div class="spin-wrap"><i class="spin"></i> Cargando…</div>');
   try {
     if (kind === 'bitacora') {
       const cs = (await gh(`${repo}/issues/${n}/comments?per_page=100`)).filter(c => isMine(c) && !/fabrica-estado:/.test(c.body || '')).slice(-15).reverse();
@@ -324,7 +326,7 @@ async function openItem(repo, n, kind) {
       <form data-reply="${repo}/${n}" class="card">
         <label for="reply">Tu mensaje ${pr ? 'sobre este cambio' : 'para ' + who}</label><textarea id="reply" required placeholder="${isProp ? 'Pregunta, cuestiona o pide cambios a la propuesta…' : 'Escribe aquí…'}"></textarea>
         <button class="primary" type="submit">Enviar</button>
-        <small>${isActive ? `Lo responde ${who} en la próxima ronda del equipo, a las ${proximaRonda(R)} (tu hora). Para algo inmediato usa «Hablar en vivo» desde la ficha de un agente.` : 'Este proyecto está en pausa: el equipo lo verá cuando lo actives.'}</small>
+        <small>${isActive ? `${isIdea || isProp ? 'Itachi te responde en 1-2 minutos.' : `Lo responde ${who} en la próxima ronda del equipo, a las ${proximaRonda(R)} (tu hora).`} Para algo inmediato usa «Hablar en vivo» desde la ficha de un agente.` : 'Este proyecto está en pausa: el equipo lo verá cuando lo actives.'}</small>
       </form>
       ${acts ? `<div class="rowbtns sticky">${acts}</div>` : ''}`);
   } catch (e) { sheet(`<p class="empty">${esc(e.message)}</p>`); }
@@ -373,7 +375,8 @@ function openSettings() {
 
 // ---------- acciones (siempre dentro de la app) ----------
 function needToken() { if (token) return false; notice('Para hacer eso desde aquí activa tu llave (⚙).'); openSettings(); return true; }
-async function act(fn, okMsg) { try { await fn(); notice(okMsg); await load(); return true; } catch (e) { notice(e.message); alert(e.message); return false; } }
+function busy(on, txt) { const L = $('loader'); ($('sheet').open ? $('sheet') : document.body).appendChild(L); L.classList.toggle('on', !!on); document.body.classList.toggle('busy', !!on); $('loader').querySelector('span').textContent = txt || 'Guardando…'; }
+async function act(fn, okMsg) { busy(true); try { await fn(); busy(true, 'Actualizando…'); notice(okMsg); await load(); return true; } catch (e) { notice(e.message); alert(e.message); return false; }  finally { busy(false); } }
 async function setActive(repo) {
   for (const R of REPOS) {
     const d = state.repos[R.name]; if (!d || !d.manualN) continue;
