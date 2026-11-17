@@ -146,13 +146,13 @@ async function load() {
         const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => isMine(c) && /VEREDICTO:/.test(c.body || ''));
         if (rev) p.veredicto = ((rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '').trim();
       }
-      const slim = i => ({n: i.number, title: i.title, created: i.created_at, at: i.updated_at, prio: prioOf(i), comments: i.comments, body: (i.body || '').slice(0, 400)});
+      const slim = i => ({n: i.number, title: i.title, created: i.created_at, at: i.updated_at, prio: prioOf(i), comments: i.comments, body: (i.body || '').slice(0, 2500), ultimo: i._ultimo || null});
       let porResponder = 0;
       for (const i of fab.filter(i => has(i, 'idea') || ((has(i, 'propuesta') || has(i, 'aprobada')) && !has(i, 'en-curso')))) {
-        if (!i.comments) { if (has(i, 'idea')) porResponder++; continue; }
+        if (!i.comments) { if (has(i, 'idea')) { porResponder++; i._ultimo = 'tu'; } continue; }
         if (!token) continue;
         const cs = await gh(`${R.name}/issues/${i.number}/comments?per_page=100`), last = cs[cs.length - 1];
-        if (last && isMine(last) && !isAgent(last)) porResponder++;
+        if (last && isMine(last) && !isAgent(last)) { porResponder++; i._ultimo = 'tu'; } else if (last) i._ultimo = 'equipo';
       }
       state.repos[R.name] = {
         porResponder,
@@ -181,175 +181,253 @@ function schedule() {
 function notice(t) { $('notice').textContent = t; }
 
 // ---------- el equipo ----------
-const EMPTY = {props: [], queue: [], planned: [], running: [], ideas: [], prs: [], estados: {}};
+const EMPTY = {props: [], queue: [], planned: [], planificando: [], running: [], ideas: [], prs: [], estados: {}};
 const active = () => REPOS.find(R => (state.repos[R.name] || {}).activo) || null;
-function team() {
-  const R = active(), d = R ? state.repos[R.name] : EMPTY;
-  return Object.keys(ROLES).map(role => {
-    const e = d.estados[role], meta = ROLES[role];
-    const fresh = e && Date.now() - new Date(e.updated).getTime() < 40 * 60000;
-    let s = 'sleep', t;
-    if (!R) t = 'Sin proyecto activo. Elige uno arriba.';
-    else if (e && e.estado.startsWith('trabaj') && fresh) { s = 'work'; t = e.paso || 'Trabajando'; }
-    else if ((role === 'explorador' || role === 'consejero') && !d.dossierN && state.fetchedAt) { s = 'queue'; t = 'Onboarding pendiente: estudiarán el proyecto completo en el próximo turno'; }
-    else if (role === 'explorador' && d.props.length) { s = 'wait'; t = `${d.props.length} propuesta(s) esperando tu decisión`; }
-    else if (role === 'consejero' && (d.planificando || []).length) { s = 'work'; t = `Escribiendo el plan de #${d.planificando[0].n} (al instante)`; }
-    else if (role === 'consejero' && d.porResponder) { s = 'queue'; t = `${d.porResponder} mensaje(s) tuyo(s) por responder: lo hace en la próxima ronda (${proximaRonda(R)})`; }
-    else if (role === 'consejero' && d.queue.length) { s = 'queue'; t = `${d.queue.length} tarea(s) aprobada(s) por planificar`; }
-    else if (role === 'consejero' && d.ideas.length) { s = 'wait'; t = `${d.ideas.length} idea(s) abiertas: esperando tu respuesta`; }
-    else if (role === 'dev' && d.running.length) { s = 'wait'; t = `#${d.running[0].n} a medio camino`; }
-    else if (role === 'dev' && d.planned.length) { s = 'queue'; t = `${d.planned.length} tarea(s) planificada(s), las toma en la próxima ronda (${turnos(R.turnos.dev)})`; }
-    else if (role === 'revisor' && d.prs.some(p => !p.veredicto)) { s = 'queue'; t = 'PR por revisar'; }
-    else if (role === 'revisor' && d.prs.length) { s = 'wait'; t = `${d.prs.length} PR revisado(s), esperando que decidas`; }
-    else t = role === 'revisor' ? 'Libre. Entra justo después del Dev' : `Libre. Próximo turno ${turnos(R.turnos[role])}`;
-    return {role, ...meta, modelo: role === 'revisor' && R ? R.revisor : meta.modelo, s, t, e, repo: R};
-  });
-}
+const dOf = R => (R && state.repos[R.name]) || EMPTY;
+const sinPaso = t => String(t || '').replace(/^\s*\d+\s*\/\s*\d+\s*·\s*/, '').trim();
+const sinHora = t => String(t || '').replace(/^\s*\d{1,2}:\d\d\s*(\([^)]*\))?\s*/, '').trim();
+const cap = t => t ? t[0].toUpperCase() + t.slice(1) : t;
 function proximaRonda(R) {
-  if (R.ronda == null) return turnos(R.turnos.consejero);
+  if (!R || R.ronda == null) return R ? turnos(R.turnos.consejero) : '';
   const d = new Date(); if (d.getUTCMinutes() >= R.ronda) d.setUTCHours(d.getUTCHours() + 1); d.setUTCMinutes(R.ronda, 0, 0);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-const SLABEL = {work: 'Trabajando ahora', wait: 'Esperando tu decisión', queue: 'Tiene trabajo para su próximo turno', sleep: 'Libre'};
+// s: work (Trabajando) · soon (Pronto) · you (Tú) · free (Libre)
+function team() {
+  const R = active(), d0 = dOf(R), fifo = l => [...l].sort((a, b) => new Date(a.created) - new Date(b.created));
+  const d = {...d0, props: fifo(d0.props), queue: fifo(d0.queue), planned: fifo(d0.planned)};
+  return Object.keys(ROLES).map(role => {
+    const e = d.estados[role], meta = ROLES[role];
+    const fresh = e && Date.now() - new Date(e.updated).getTime() < 40 * 60000;
+    let s = 'free', big = '', sub = '', next = '';
+    const ronda = R ? `a las ${proximaRonda(R)}` : '';
+    if (!R) { big = 'Sin proyecto'; sub = 'Elige un proyecto arriba'; }
+    else if (e && e.estado.startsWith('trabaj') && fresh) { s = 'work'; big = cap(sinPaso(e.paso)) || 'Trabajando'; sub = e.tarea && e.tarea !== '—' ? e.tarea : ''; }
+    else if ((role === 'explorador' || role === 'consejero') && !d.dossierN && state.fetchedAt) { s = 'soon'; big = 'Va a estudiar el proyecto'; sub = 'Onboarding en la próxima ronda'; }
+    else if (role === 'consejero' && d.planificando.length) { s = 'work'; big = 'Escribiendo un plan'; sub = d.planificando[0].title; }
+    else if (role === 'consejero' && d.porResponder) { s = 'soon'; big = 'Va a responder tu mensaje'; sub = ronda; }
+    else if (role === 'consejero' && d.queue.length) { s = 'soon'; big = 'Va a planificar una tarea'; sub = `${titulo(d.queue[0].title).t} · ${ronda}`; }
+    else if (role === 'explorador' && d.props.length) { s = 'you'; big = `${d.props.length} propuesta${d.props.length > 1 ? 's esperan' : ' espera'} tu decisión`; sub = 'En Inicio'; }
+    else if (role === 'dev' && d.running.length) { s = 'work'; big = 'Programando'; sub = d.running[0].title; }
+    else if (role === 'dev' && d.planned.length) { s = 'soon'; big = 'Va a programar'; sub = `${titulo(d.planned[0].title).t} · ${ronda}`; }
+    else if (role === 'revisor' && d.prs.some(p => !p.veredicto)) { s = 'soon'; big = 'Va a revisar un cambio'; sub = ronda; }
+    else if (role === 'revisor' && d.prs.length) { s = 'you'; big = 'Revisó: te toca fusionar'; sub = 'En Inicio'; }
+    else { big = 'Libre'; sub = Scene.activity(role) || (role === 'explorador' ? `Explora a las ${turnos(R.turnos.explorador)}` : role === 'seguridad' ? 'Audita los domingos' : 'Entra cuando llegue trabajo'); }
+    if (role === 'explorador') next = R ? `Explorar el proyecto a las ${turnos(R.turnos.explorador)}` : '';
+    if (role === 'consejero') next = d.queue[0] ? `Planificar «${titulo(d.queue[0].title).t}»` : d.props[0] ? `Planificar «${titulo(d.props[0].title).t}» cuando lo apruebes` : 'Responder tus ideas al instante';
+    if (role === 'dev') next = d.planned[0] ? `Programar «${titulo(d.planned[0].title).t}»` : 'Programar lo que Itachi planifique';
+    if (role === 'revisor') next = 'Revisar cada cambio apenas Sasuke abre el PR';
+    if (role === 'seguridad') next = 'Auditoría del domingo';
+    const util = e ? e.log.map(sinHora).filter(l => !/worktree|copia de trabajo|^borr|eliminad|quedo libre|resumen del turno|^inicio|^tom[eé] /i.test(l)) : [];
+    const last = util.length ? util[util.length - 1] : (e && e.log.length ? sinHora(e.log[e.log.length - 1]) : '');
+    return {role, ...meta, modelo: role === 'revisor' && R ? R.revisor : meta.modelo, s, big, sub, next, last, e, repo: R};
+  });
+}
+const PILL = {work: ['Trabajando', 'p-work'], soon: ['Pronto', 'p-soon'], you: ['Tú', 'p-you'], free: ['Libre', 'p-free']};
+const pill = s => `<span class="pill ${PILL[s][1]}">${PILL[s][0]}</span>`;
+const av = (role, size = '') => `<span class="av ${size}" style="background:${ROLES[role].shirt}">${ROLES[role].nombre[0]}</span>`;
+
+// ---------- resúmenes cortos ----------
+function titulo(t) { const m = String(t).match(/^\s*(Paso\s+[\d.]+)\s*·\s*(.*)$/i); return m ? {paso: m[1], t: m[2]} : {paso: '', t: String(t)}; }
+function plano(txt) {
+  return String(txt || '').replace(/\(\s*`[^`]*`[^)]*\)/g, '').replace(/`([^`]*)`/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(^|\s)[*_]([^*_\n]+)[*_]/g, '$1$2').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim();
+}
+function corta(txt, n = 140) { const t = plano(txt); if (t.length <= n) return t; const cut = t.slice(0, n); const dot = cut.lastIndexOf('. '); return (dot > 60 ? cut.slice(0, dot + 1) : cut.replace(/\s\S*$/, '') + '…'); }
+function enCorto(body) {
+  const b = clean(body), out = {};
+  const sec = b.match(/#+\s*En corto\s*\n([\s\S]*?)(?:\n#+\s|$)/i);
+  const src = sec ? sec[1] : b;
+  const g = re => { const m = src.match(re); return m ? plano(m[1]) : ''; };
+  out.ve = g(/\*\*\s*Qu[eé] ver[aá]s\s*:?\s*\*\*:?\s*(.+)/i); out.por = g(/\*\*\s*Por qu[eé][^*]*:?\s*\*\*:?\s*(.+)/i); out.prueba = g(/\*\*\s*C[oó]mo probarlo\s*:?\s*\*\*:?\s*(.+)/i);
+  out.resumen = g(/\*\*\s*Resumen\s*:?\s*\*\*:?\s*(.+)/i);
+  if (!out.resumen) {
+    const sec2 = b.replace(/^>.*$/gm, '').match(/#+\s*(?:Problema|Objetivo)[^\n]*\n+([^\n#|>-][^\n]*)/i);
+    const para = (sec2 && sec2[1]) || b.split('\n').find(l => l.trim() && !/^\s*([#>|-]|\d+[.)]|\*\*[^*]+\*\*\s*$)/.test(l)) || '';
+    out.resumen = corta(out.ve || para, 150);
+  }
+  return out;
+}
+function primerParrafo(body) { const b = clean(body); const p = b.split(/\n\s*\n/).find(x => x.trim() && !/^\s*#/.test(x)) || b; return p.trim(); }
 
 // ---------- pintar ----------
 const style = () => document.body.dataset.style;
 function render() {
-  const R = active();
+  const R = active(), d = dOf(R);
   $('proyecto').innerHTML = R ? `<i style="background:${R.color}"></i>${esc(R.nombre)} <span>▾</span>` : 'Elegir proyecto <span>▾</span>';
   Scene.refresh();
-  $('team').innerHTML = `<div class="card"><h2 style="margin-top:0">Equipo${R ? ' · ' + esc(R.short) : ''}</h2>${team().map(a => {
-    const act = a.s === 'sleep' && R ? Scene.activity(a.role) : '';
-    return `<button class="who" data-role="${a.role}"><span class="dot s-${a.s}"></span><span><b>${a.nombre}</b> · ${a.puesto} <small>${esc(act ? act + '. ' + a.t : a.t)}</small></span></button>`;
-  }).join('')}</div>`;
-  document.querySelectorAll('[data-setstyle]').forEach(b => b.classList.toggle('on', b.dataset.setstyle === style()));
-  const rows = []; let pipe = '', ideas = '';
+  const T = team();
+  // Inicio: decisiones
+  const rows = [];
   for (const Rx of REPOS) {
-    const d = state.repos[Rx.name]; if (!d) continue;
-    for (const p of d.prs) rows.push({R: Rx, p, tipo: 'pr', tag: p.veredicto ? 'Revisor: ' + p.veredicto.toLowerCase() : 'PR sin revisar aún', cls: 't-pr'});
-    for (const p of d.props) rows.push({R: Rx, p, tipo: 'propuesta', tag: 'Propuesta', cls: 't-prop'});
-    for (const p of d.ideas) ideas += item(Rx, p, 't-prop', `Idea · ${p.comments} mensaje(s)`);
+    const dx = state.repos[Rx.name]; if (!dx) continue;
+    for (const p of dx.prs) if (p.veredicto) rows.push({R: Rx, p, tipo: 'pr'});
+    for (const p of dx.props) rows.push({R: Rx, p, tipo: 'prop'});
+    for (const p of dx.ideas) if (p.ultimo === 'equipo') rows.push({R: Rx, p, tipo: 'idea'});
   }
-  const f = filters, n = rows.length;
-  const shown = rows.filter(r => (f.repo === 'todos' || r.R.name === f.repo) && (f.tipo === 'todo' || r.tipo === f.tipo) && (f.prio === 'todas' || (f.prio === 'sin' ? !r.p.prio : r.p.prio === f.prio)))
-    .sort((x, y) => new Date(x.p.created) - new Date(y.p.created));
-  $('fcount').textContent = n ? `${shown.length} de ${n} · más antiguas primero` : '';
-  $('inbox').innerHTML = shown.map(r => item(r.R, r.p, r.cls, r.tag)).join('') || (n ? '<p class="empty">Nada con estos filtros.</p>' : '<p class="empty">Nada pendiente. Los agentes no te necesitan ahora.</p>');
-  const A = active(), dA = A ? state.repos[A.name] || EMPTY : EMPTY;
-  const cols = [['Aprobadas', 'Itachi las planifica', dA.queue, 't-ok'], ['Planificadas', 'Sasuke las implementa', dA.planned, 't-ok'], ['En código', 'Sasuke trabajando', dA.running, 't-run'], ['En revisión', 'Madara revisa', dA.prs.filter(p => !p.veredicto), 't-pr']];
-  pipe = A ? `<div class="kanban">${cols.map(([t, sub, list, cls]) => `<div class="col"><h4>${t} <b>${list.length}</b></h4><small>${sub}</small>${list.sort((x, y) => new Date(x.created) - new Date(y.created)).map(i => `<button class="mini" data-open="${A.name}/${i.n}${i.pr ? '/pr' : ''}">#${i.n} ${esc(i.title)}</button>`).join('') || '<p class="empty">—</p>'}</div>`).join('')}</div>` : '';
-  $('pipeline').innerHTML = pipe || '<p class="empty">Elige un proyecto activo.</p>';
-  $('marcha').innerHTML = A ? enMarcha(A) : '<p class="empty">Elige un proyecto activo.</p>';
-  $('ideas').innerHTML = ideas || '<p class="empty">Aún no has traído ideas. Escribe la primera arriba.</p>';
-  $('badge').textContent = n || '';
-  if (n > lastCount && lastCount >= 0 && store.get('fabrica-sonido', false)) chime();
-  lastCount = n;
-  const now = new Date();
-  $('clock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}` + (state.fetchedAt ? ` · datos ${ago(new Date(state.fetchedAt).toISOString())}` : '');
+  const f = filters.tipo || 'todo';
+  const shown = rows.filter(r => f === 'todo' || r.tipo === f).sort((x, y) => new Date(x.p.created) - new Date(y.p.created));
+  const work = T.filter(a => a.s === 'work');
+  const enMarcha = R ? d.running.length + d.planned.length + d.queue.length + d.prs.filter(p => !p.veredicto).length + d.planificando.length : 0;
+  $('resumen').innerHTML = `<div><b>${rows.length}</b><span>para decidir</span></div><div><b>${enMarcha}</b><span>en marcha</span></div><div><b class="${work.length ? 'c-work' : 'c-free'}">●</b><span>${work.length ? work.length + ' trabajando' : 'equipo libre'}</span></div>`;
+  $('filtros').innerHTML = [['todo', 'Todo'], ['prop', 'Propuestas'], ['pr', 'Para fusionar'], ['idea', 'Ideas']].map(([k, t]) => `<button class="chipb ${f === k ? 'on' : ''}" data-filtro="${k}">${t}</button>`).join('');
+  $('inbox').innerHTML = shown.map(card).join('') || `<div class="vacio">${rows.length ? 'Nada con este filtro.' : '✓ Nada pendiente. El equipo no te necesita ahora.'}</div>`;
+  $('marcha').innerHTML = R ? enMarchaHTML(R, T) : '<div class="vacio">Elige un proyecto arriba.</div>';
+  // Oficina
+  $('team').innerHTML = T.map(a => `<button class="row" data-role="${a.role}">${av(a.role)}<span class="x"><b>${a.nombre}</b><span>${esc(a.s === 'free' ? a.sub : a.big + (a.sub && a.s !== 'you' ? ' · ' + a.sub : ''))}</span></span>${pill(a.s)}</button>`).join('');
+  // Ideas
+  $('ideas').innerHTML = REPOS.flatMap(Rx => (dOf(Rx).ideas || []).map(p => ({Rx, p}))).sort((a, b) => new Date(b.p.at) - new Date(a.p.at)).map(({Rx, p}) =>
+    `<button class="card tap" data-chat="${Rx.name}/${p.n}"><div class="tags">${p.ultimo === 'equipo' ? '<span class="tag t-ok">Itachi respondió</span>' : p.ultimo === 'tu' ? '<span class="tag">Esperando a Itachi</span>' : ''}${Rx.name !== (R || {}).name ? `<span class="tag">${esc(Rx.nombre)}</span>` : ''}</div><div class="t">${esc(p.title)}</div><div class="s">${esc(corta(enCorto(p.body).resumen || p.body, 110))}</div></button>`).join('') || '<div class="vacio">Aún no hay ideas. Escribe la primera arriba.</div>';
+  $('badge').textContent = rows.length || '';
+  if (rows.length > lastCount && lastCount >= 0 && store.get('fabrica-sonido', false)) chime();
+  lastCount = rows.length;
   for (const id of ['t-repo', 'i-repo']) if (!$(id).dataset.touched && R) $(id).value = R.name;
 }
-const FASES = ['Aprobada', 'Plan', 'Código', 'Revisión', 'Fusionar'];
-function enMarcha(R) {
-  const d = state.repos[R.name] || EMPTY, T = team(), working = T.filter(a => a.s === 'work'), out = [];
-  const now = role => { const a = working.find(x => x.role === role); return a ? `${a.nombre} ahora: ${a.e.paso || 'trabajando'}` : ''; };
-  const prOf = n => d.prs.find(p => p.issue === n);
-  const add = (i, fase, quien, pr) => out.push({i, fase, quien, pr});
-  for (const i of d.running) { const p = prOf(i.n); if (!p) add(i, 2, now('dev') || 'Sasuke la está programando'); }
-  for (const p of d.prs) add({n: p.issue || p.n, title: p.title, created: p.created}, p.veredicto ? 4 : 3, p.veredicto ? `Madara dice: ${p.veredicto.toLowerCase()}. Te toca decidir.` : (now('revisor') || `Madara la revisa en la próxima ronda (${turnos(R.turnos.dev)})`), p);
-  for (const i of d.planned) add(i, 2, `Plan listo. Sasuke la programa en la próxima ronda (${turnos(R.turnos.dev)})`);
-  for (const i of d.queue) add(i, 1, now('consejero') && /#\s*${i.n}\b/.test(now('consejero')) ? now('consejero') : `Itachi escribe el plan en la próxima ronda del equipo (${turnos(R.turnos.consejero)})`);
-  out.sort((a, b) => b.fase - a.fase || new Date(a.i.created) - new Date(b.i.created));
-  const onb = !d.dossierN || working.some(a => /onboarding/i.test((a.e && (a.e.tarea + ' ' + a.e.paso)) || ''));
-  const head = onb ? `<div class="item marcha"><span class="tag t-run">Onboarding</span><b>El equipo está estudiando ${esc(R.nombre)}</b><span class="meta">${esc(now('explorador') || now('consejero') || 'Empieza en el próximo turno del equipo')}</span></div>` : '';
-  return head + (out.map(o => `<button class="item marcha" data-open="${R.name}/${o.pr ? o.pr.n + '/pr' : o.i.n}"><b>#${o.i.n} ${esc(o.i.title)}</b>
-    <span class="fases">${FASES.map((f, k) => `<span class="${k < o.fase ? 'ok' : k === o.fase ? 'now' : ''}">${f}</span>`).join('')}</span>
-    <span class="meta">${esc(o.quien)}</span></button>`).join('') || (head ? '' : '<p class="empty">Nada en marcha. Aprueba una propuesta para que el equipo empiece.</p>'));
+function card({R, p, tipo}) {
+  const ti = titulo(p.title), ec = enCorto(p.body || ''), otro = R.name !== (active() || {}).name;
+  const tags = [];
+  if (p.prio) tags.push(`<span class="tag ${p.prio}">${p.prio.toUpperCase()}</span>`);
+  tags.push(`<span class="tag">${tipo === 'pr' ? 'Para fusionar' : tipo === 'idea' ? 'Idea' : 'Propuesta'}${ti.paso ? ' · ' + ti.paso : ''}</span>`);
+  if (p.ultimo === 'equipo' && tipo !== 'pr') tags.push('<span class="tag t-warn">Itachi te escribió</span>');
+  if (tipo === 'pr' && p.veredicto) tags.push(`<span class="tag ${/LISTO/.test(p.veredicto) ? 't-ok' : /NO /.test(p.veredicto) ? 'alta' : 't-warn'}">Madara: ${esc(p.veredicto.toLowerCase())}</span>`);
+  if (otro) tags.push(`<span class="tag">${esc(R.nombre)}</span>`);
+  const btns = tipo === 'pr'
+    ? `<button class="b p" data-act="fusionar" data-repo="${R.name}" data-n="${p.n}">Fusionar</button><button class="b" data-open="${R.name}/${p.n}/pr">Ver</button>`
+    : tipo === 'idea' ? `<button class="b p" data-chat="${R.name}/${p.n}">Responder</button>`
+    : `<button class="b p" data-act="aprobar" data-repo="${R.name}" data-n="${p.n}">Aprobar</button><button class="b" data-open="${R.name}/${p.n}">Ver</button><button class="b g" data-act="rechazar" data-repo="${R.name}" data-n="${p.n}" aria-label="Rechazar">✕</button>`;
+  return `<div class="card"><div class="tags">${tags.join('')}</div><div class="t tap" data-open="${R.name}/${p.n}${tipo === 'pr' ? '/pr' : ''}">${esc(ti.t)}</div>${ec.resumen ? `<div class="s">${esc(ec.resumen)}</div>` : ''}<div class="btns">${btns}</div></div>`;
 }
-function item(R, i, cls, tag) {
-  return `<button class="item" data-open="${R.name}/${i.n}${i.pr ? '/pr' : ''}"><span class="tag ${cls}">${esc(tag)}</span>${i.prio ? `<span class="tag p-${i.prio}">prioridad ${i.prio}</span>` : ''}<b>#${i.n} ${esc(i.title)}</b><span class="meta">${esc(R.nombre)}${(active() || {}).name === R.name ? '' : ' · en pausa'} · creada ${ago(i.created || i.at)}</span>${i.body ? `<span class="meta">${esc(clean(i.body).replace(/[#*`>|_]/g, '').replace(/\s+/g, ' ').slice(0, 180))}…</span>` : ''}<span class="more">Abrir →</span></button>`;
+const FASES = ['Aprobada', 'Plan', 'Código', 'Revisión', 'Tuya'];
+const pasos = f => `<div class="steps">${FASES.map((_, k) => `<i class="${k < f ? 'ok' : k === f ? 'now' : ''}"></i>`).join('')}</div><div class="stepl">${FASES.map((x, k) => `<span class="${k === f ? 'now' : ''}">${x}</span>`).join('')}</div>`;
+function fases(R) {
+  const d = dOf(R), out = [], prOf = n => d.prs.find(p => p.issue === n), ronda = proximaRonda(R);
+  for (const i of d.running) if (!prOf(i.n)) out.push({i, f: 2, q: 'Sasuke programando'});
+  for (const p of d.prs) out.push({i: {n: p.issue || p.n, title: p.title, created: p.created}, f: p.veredicto ? 4 : 3, q: p.veredicto ? 'Te toca fusionar' : `Madara revisa · ${ronda}`, pr: p});
+  for (const i of d.planned) out.push({i, f: 2, q: `Sasuke programa · ${ronda}`});
+  for (const i of d.planificando) out.push({i, f: 1, q: 'Itachi escribe el plan ahora'});
+  for (const i of d.queue) if (!d.planificando.some(x => x.n === i.n)) out.push({i, f: 1, q: `Itachi planifica · ${ronda}`});
+  return out.sort((a, b) => b.f - a.f || new Date(a.i.created) - new Date(b.i.created));
+}
+function enMarchaHTML(R, T) {
+  const d = dOf(R), list = fases(R).filter(o => o.f < 4);
+  const onb = !d.dossierN ? `<div class="card"><div class="t">Estudiando ${esc(R.nombre)}</div><div class="s">Onboarding: el equipo lee el proyecto completo antes de proponer.</div></div>` : '';
+  return onb + (list.map(o => `<button class="card tap" data-open="${R.name}/${o.pr ? o.pr.n + '/pr' : o.i.n}"><div class="t">${esc(titulo(o.i.title).t)}</div>${pasos(o.f)}<div class="s">${esc(o.q)}</div></button>`).join('') || (onb ? '' : '<div class="vacio">Nada en marcha. Aprueba una propuesta y el equipo arranca.</div>'));
 }
 function chime() { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.type = 'square'; o.frequency.setValueAtTime(880, c.currentTime); o.frequency.setValueAtTime(1320, c.currentTime + .09); g.gain.setValueAtTime(.06, c.currentTime); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + .25); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + .26); } catch (e) {} }
 
-// ---------- hojas (todo se lee dentro de la app) ----------
-function sheet(html) { $('sheet-body').innerHTML = html + '<div class="rowbtns"><button data-close>Cerrar</button></div>'; if (!$('sheet').open) $('sheet').showModal(); $('sheet-body').scrollTop = 0; }
-function openAgent(role) {
-  const R = active(), a = team().find(x => x.role === role), e = a.e;
-  const log = e && e.log.length ? `<ul class="log">${e.log.map(l => `<li>${inline(esc(l))}</li>`).join('')}</ul>` : '<p class="empty">Todavía no ha publicado pasos de trabajo. Aparecerán aquí en su próximo turno.</p>';
-  sheet(`
-    <h3>${a.nombre} <small style="display:inline">· ${a.puesto}</small></h3>
-    <p style="margin:6px 0 10px">${a.hace}</p>
-    <span class="state s-${a.s}">${SLABEL[a.s]}</span>
-    <dl class="kv">
-      <dt>Ahora</dt><dd>${esc(a.s === 'sleep' && R ? (Scene.activity(role) || 'En pausa') + '. ' + a.t : a.t)}</dd>
-      ${R ? `<dt>Proyecto</dt><dd>${esc(R.short)}</dd>` : ''}
-      ${a.s === 'work' && e && e.tarea && e.tarea !== '—' ? `<dt>Tarea</dt><dd>${esc(e.tarea)}</dd>` : ''}
-      ${a.s === 'work' && e && e.accion ? `<dt>Acción</dt><dd>${esc(e.accion)}</dd>` : ''}
-      <dt>Modelo</dt><dd>${a.modelo}</dd>
-      ${R ? `<dt>Turno (tu hora)</dt><dd>${role === 'revisor' ? 'Justo después del Dev' : turnos(R.turnos[role])}</dd>` : ''}
-      ${e ? `<dt>Última señal</dt><dd>${ago(e.updated)}</dd>` : ''}
-    </dl>
-    <h2>Cómo lo está haciendo</h2>${log}
-    ${R ? `<div class="rowbtns"><a class="btn primary" href="https://claude.ai/code/${R.session}" target="_blank" rel="noopener">Hablar en vivo</a><button data-open="${R.name}/${state.repos[R.name].bitN}/bitacora">Bitácora</button></div>
-    <small>«Hablar en vivo» abre la conversación del equipo en la app de Claude: pregúntale en qué está o pídele cambios al instante.</small>` : ''}`);
+// ---------- vistas (pantalla completa en el celu) ----------
+let backFn = null;
+function view({title = '', back = null, right = '', body = '', foot = ''}) {
+  backFn = back;
+  $('sheet-body').innerHTML = `<div class="v-top"><button class="v-back" data-back>${back ? '‹ Volver' : '✕ Cerrar'}</button><b class="v-title">${title}</b>${right}</div><div class="v-body">${body}</div>${foot ? `<div class="v-foot">${foot}</div>` : ''}`;
+  if (!$('sheet').open) $('sheet').showModal();
+  const vb = $('sheet-body').querySelector('.v-body'); if (vb) vb.scrollTop = 0;
 }
-async function openItem(repo, n, kind) {
-  const R = REPOS.find(r => r.name === repo); sheet('<div class="spin-wrap"><i class="spin"></i> Cargando…</div>');
-  try {
-    if (kind === 'bitacora') {
-      const cs = (await gh(`${repo}/issues/${n}/comments?per_page=100`)).filter(c => isMine(c) && !/fabrica-estado:/.test(c.body || '')).slice(-15).reverse();
-      return sheet(`<h3>Bitácora · ${esc(R.short)}</h3><p class="small">Resumen y lección de cada turno, lo más reciente primero.</p>${cs.map(c => `<div class="msg bot"><b>${esc(author(c).who)} · ${ago(c.created_at)}</b><div class="md">${md(c.body)}</div></div>`).join('') || '<p class="empty">Aún sin turnos registrados.</p>'}`);
-    }
-    const [it, cs] = await Promise.all([gh(`${repo}/issues/${n}`), gh(`${repo}/issues/${n}/comments?per_page=100`)]);
-    const pr = kind === 'pr', d = state.repos[repo] || EMPTY, isIdea = has(it, 'idea'), isProp = has(it, 'propuesta') && !has(it, 'aprobada'), isActive = (active() || {}).name === repo;
-    let files = '';
-    if (pr) {
-      const fs = await gh(`${repo}/pulls/${n}/files?per_page=100`); let budget = 500;
-      files = `<h2>Cambios (${fs.length} archivo${fs.length === 1 ? '' : 's'})</h2>` + fs.map(f => {
-        const lines = (f.patch || '(sin vista previa)').split('\n'), shownL = lines.slice(0, Math.max(0, budget)); budget -= shownL.length;
-        return `<details class="diff"><summary><code>${esc(f.filename)}</code> <span class="add">+${f.additions}</span> <span class="del">−${f.deletions}</span></summary><pre>${shownL.map(l => `<span class="${l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : l.startsWith('@@') ? 'hunk' : ''}">${esc(l)}</span>`).join('\n')}${lines.length > shownL.length ? '\n…' : ''}</pre></details>`;
-      }).join('');
-    }
-    const who = isIdea || isProp || has(it, 'aprobada') ? 'Itachi (Consejero)' : 'el equipo';
-    const thread = cs.map(c => { const a = author(c); return `<div class="msg ${a.cls}"><b>${esc(a.who)} · ${ago(c.created_at)}</b><div class="md">${md(c.body)}</div></div>`; }).join('');
-    const p = d.prs.find(x => x.n === +n);
-    const acts = pr
-      ? `<button class="primary" data-act="fusionar" data-repo="${repo}" data-n="${n}">${R.despliega ? 'Fusionar y desplegar' : 'Fusionar'}</button>`
-      : isProp ? `<button class="primary" data-act="aprobar" data-repo="${repo}" data-n="${n}">Aprobar</button><button class="danger" data-act="rechazar" data-repo="${repo}" data-n="${n}">Rechazar</button>`
-      : isIdea ? `<button class="danger" data-act="cerrar" data-repo="${repo}" data-n="${n}">Cerrar idea</button>` : '';
-    sheet(`
-      <p class="small">${esc(R.short)} · #${n} · creada ${ago(it.created_at)}${isActive ? '' : ' · <b>proyecto en pausa</b>'}${p && p.veredicto ? ` · Revisor: <b>${esc(p.veredicto.toLowerCase())}</b>` : ''}</p>
-      <h3>${esc(it.title)}</h3>
+const cargando = () => view({body: '<div class="spin-wrap"><i class="spin"></i> Cargando…</div>'});
+const acordeon = (icono, titulo, html, abierto = false) => `<details class="acc" ${abierto ? 'open' : ''}><summary><span>${icono} ${titulo}</span><span class="chev">›</span></summary><div class="acc-in md">${html}</div></details>`;
 
-      <div class="md card">${md(it.body)}</div>
-      ${files}
-      <h2>Conversación</h2>${thread || '<p class="empty">Aún nadie ha comentado.</p>'}
-      <form data-reply="${repo}/${n}" class="card">
-        <label for="reply">Tu mensaje ${pr ? 'sobre este cambio' : 'para ' + who}</label><textarea id="reply" required placeholder="${isProp ? 'Pregunta, cuestiona o pide cambios a la propuesta…' : 'Escribe aquí…'}"></textarea>
-        <button class="primary" type="submit">Enviar</button>
-        <small>${isActive ? `${isIdea || isProp ? 'Itachi te responde en 1-2 minutos.' : `Lo responde ${who} en la próxima ronda del equipo, a las ${proximaRonda(R)} (tu hora).`} Para algo inmediato usa «Hablar en vivo» desde la ficha de un agente.` : 'Este proyecto está en pausa: el equipo lo verá cuando lo actives.'}</small>
-      </form>
-      ${acts ? `<div class="rowbtns sticky">${acts}</div>` : ''}`);
-  } catch (e) { sheet(`<p class="empty">${esc(e.message)}</p>`); }
+const cache = {};
+async function datos(repo, n, pr) {
+  const [it, cs] = await Promise.all([gh(`${repo}/issues/${n}`), gh(`${repo}/issues/${n}/comments?per_page=100`)]);
+  const files = pr ? await gh(`${repo}/pulls/${n}/files?per_page=100`) : null;
+  return (cache[repo + n] = {it, cs: cs.filter(c => isMine(c) || (c.user.login === 'github-actions[bot]' && /^\s*🤖/.test(c.body || ''))), files});
+}
+function rolDe(c) { if (!isAgent(c)) return null; const m = (c.body || '').match(/^\s*🤖\s*([^:\n]{1,40}):/); return (m && PUESTO_A_ROL[m[1].trim().toLowerCase().split(/[\s·,]/)[0]]) || 'consejero'; }
+
+async function openTask(repo, n, kind) {
+  const R = REPOS.find(r => r.name === repo), pr = kind === 'pr'; cargando();
+  try {
+    const {it, cs, files} = await datos(repo, n, pr);
+    const ti = titulo(it.title), ec = enCorto(it.body), isProp = has(it, 'propuesta') && !has(it, 'aprobada'), isIdea = has(it, 'idea');
+    const plan = [...cs].reverse().find(c => /^\s*🤖\s*Arquitecto:\s*Plan/i.test(c.body || ''));
+    const opin = [...cs].reverse().find(c => rolDe(c) === 'consejero' && c !== plan);
+    const rev = [...cs].reverse().find(c => /VEREDICTO:/.test(c.body || ''));
+    const prio = prioOf(it);
+    let corto = '';
+    if (ec.ve || ec.por || ec.prueba) corto = `<div class="card">${ec.ve ? `<div class="li"><span class="n">👁</span><span><b>Qué verás:</b> ${esc(ec.ve)}</span></div>` : ''}${ec.por ? `<div class="li"><span class="n">?</span><span><b>Por qué ahora:</b> ${esc(ec.por)}</span></div>` : ''}${ec.prueba ? `<div class="li"><span class="n">▶</span><span><b>Cómo probarlo:</b> ${esc(ec.prueba)}</span></div>` : ''}</div>`;
+    else corto = `<div class="card"><div class="s big-s">${esc(ec.resumen || corta(it.body, 220))}</div></div>`;
+    const fase = fases(R).find(o => pr ? (o.pr && o.pr.n === +n) : o.i.n === +n);
+    const quien = rev ? `<div class="quote"><b>Madara:</b> ${esc(corta(primerParrafo(rev.body).replace(/VEREDICTO:\s*/, ''), 200))}</div>` : opin ? `<div class="quote"><b>Itachi:</b> ${esc(corta(primerParrafo(opin.body), 200))}</div>` : '';
+    const diff = files ? acordeon('🧩', `Cambios en ${files.length} archivo${files.length === 1 ? '' : 's'}`, files.map(f => `<details class="diff"><summary><code>${esc(f.filename)}</code> <span class="add">+${f.additions}</span> <span class="del">−${f.deletions}</span></summary><pre>${(f.patch || '(sin vista previa)').split('\n').slice(0, 300).map(l => `<span class="${l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : l.startsWith('@@') ? 'hunk' : ''}">${esc(l)}</span>`).join('\n')}</pre></details>`).join('')) : '';
+    const foot = pr ? `<button class="b p" data-act="fusionar" data-repo="${repo}" data-n="${n}">${R.despliega ? 'Fusionar y desplegar' : 'Fusionar'}</button><button class="b" data-chat="${repo}/${n}/pr">Preguntar</button>`
+      : isProp ? `<button class="b p" data-act="aprobar" data-repo="${repo}" data-n="${n}">Aprobar</button><button class="b" data-chat="${repo}/${n}">Preguntar</button><button class="b g" data-act="rechazar" data-repo="${repo}" data-n="${n}">Rechazar</button>`
+      : `<button class="b p" data-chat="${repo}/${n}${pr ? '/pr' : ''}">Abrir chat</button>${isIdea ? `<button class="b g" data-act="cerrar" data-repo="${repo}" data-n="${n}">Cerrar idea</button>` : ''}`;
+    view({title: '', right: prio ? `<span class="tag ${prio}">${prio.toUpperCase()}</span>` : '', body: `
+      <div class="tags">${ti.paso ? `<span class="tag">${ti.paso}</span>` : ''}<span class="tag">${pr ? 'Cambio listo' : isIdea ? 'Idea' : isProp ? 'Propuesta' : 'En la cadena'}</span><span class="tag">#${n} · ${ago(it.created_at)}</span></div>
+      <h3 class="v-h">${esc(ti.t)}</h3>
+      ${fase ? `<div class="card">${pasos(fase.f)}<div class="s">${esc(fase.q)}</div></div>` : ''}
+      <h2>En corto</h2>${corto}${quien}
+      ${diff}
+      ${plan ? acordeon('🗺', 'Plan de Itachi', md(plan.body)) : ''}
+      ${acordeon('📄', pr ? 'Descripción del cambio' : 'Detalle técnico completo', md(it.body))}
+      <button class="acc-link" data-chat="${repo}/${n}${pr ? '/pr' : ''}"><span>💬 Chat de esta tarea (${cs.length})</span><span class="chev">›</span></button>`, foot});
+  } catch (e) { view({body: `<div class="vacio">${esc(e.message)}</div>`}); }
+}
+async function openChat(repo, n, kind) {
+  const R = REPOS.find(r => r.name === repo), pr = kind === 'pr'; cargando();
+  try {
+    const {it, cs} = cache[repo + n] || await datos(repo, n, pr);
+    const ti = titulo(it.title), isIdea = has(it, 'idea');
+    const fase = fases(R).find(o => pr ? (o.pr && o.pr.n === +n) : o.i.n === +n);
+    const burbuja = c => {
+      const rol = rolDe(c), cuerpo = clean(c.body), primero = primerParrafo(c.body), largo = cuerpo.length > primero.length + 20;
+      if (!rol) return `<div class="msg me"><div class="bub">${md(cuerpo)}<span class="hora">${ago(c.created_at)}</span></div></div>`;
+      return `<div class="msg">${av(rol)}<div class="bub"><div class="nm" style="color:${ROLES[rol].shirt}">${ROLES[rol].nombre}</div>${largo ? `<details><summary>${md(primero)}<span class="mas">Ver completo</span></summary>${md(cuerpo.slice(cuerpo.indexOf(primero) + primero.length))}</details>` : md(cuerpo)}<span class="hora">${ago(c.created_at)}</span></div></div>`;
+    };
+    const inicio = isMine(it) && !it.performed_via_github_app && !/^\s*🤖/.test(it.body || '')
+      ? `<div class="msg me"><div class="bub"><b>${esc(it.title)}</b>${md(String(it.body || '').replace(/\n*—\s*(Idea|Tarea directa) de Gonzalo[^\n]*$/, ''))}<span class="hora">${ago(it.created_at)}</span></div></div>`
+      : `<div class="msg">${av('explorador')}<div class="bub"><div class="nm" style="color:${ROLES.explorador.shirt}">${ROLES.explorador.nombre}</div>${esc(enCorto(it.body).resumen || corta(it.body, 200))}<span class="mas" data-open="${repo}/${n}${pr ? '/pr' : ''}">Ver la tarea</span></div></div>`;
+    const espera = cs.length && !rolDe(cs[cs.length - 1]) || (isIdea && !cs.length);
+    view({title: esc(corta(ti.t, 34)), back: () => openTask(repo, n, kind), body: `
+      ${fase ? `<div class="card">${pasos(fase.f)}</div>` : ''}
+      <div class="chat">${inicio}${cs.map(burbuja).join('')}${espera ? `<div class="escribiendo">${av('consejero')}<span>Itachi responde en 1-2 minutos…</span></div>` : ''}</div>`,
+      foot: `<form class="chat-in" data-reply="${repo}/${n}/${kind || ''}"><textarea id="reply" rows="1" required placeholder="Escribe a ${pr ? 'el equipo' : 'Itachi'}…"></textarea><button class="b p send" type="submit" aria-label="Enviar">➤</button></form>`});
+    const vb = $('sheet-body').querySelector('.v-body'); vb.scrollTop = vb.scrollHeight;
+  } catch (e) { view({body: `<div class="vacio">${esc(e.message)}</div>`}); }
+}
+function openAgent(role) {
+  const a = team().find(x => x.role === role), R = active();
+  view({body: `
+    <div class="ag-head">${av(role, 'xl')}<div><b>${a.nombre}</b><span>${a.puesto} · ${a.modelo}</span></div></div>
+    <div class="card">${pill(a.s)}<div class="big">${esc(a.big)}</div>${a.sub ? `<div class="s">${esc(a.sub)}</div>` : ''}</div>
+    <div class="kv2">${a.last ? `<span>Último trabajo</span><b>${esc(corta(a.last, 120))}${a.e ? ` · ${ago(a.e.updated)}` : ''}</b>` : ''}${a.next ? `<span>Siguiente</span><b>${esc(a.next)}</b>` : ''}<span>Qué hace</span><b class="dim">${esc(a.hace)}</b></div>
+    ${a.e && a.e.log.length ? acordeon('📜', `Qué hizo paso a paso (${a.e.log.length})`, `<ul class="log">${a.e.log.map(l => `<li>${inline(esc(l))}</li>`).join('')}</ul>`) : ''}
+    ${R ? `<a class="acc-link" href="https://claude.ai/code/${R.session}" target="_blank" rel="noopener"><span>💬 Hablarle ahora (abre Claude)</span><span class="chev">›</span></a>` : ''}`});
+}
+function openBitacora(repo, n) {
+  cargando();
+  gh(`${repo}/issues/${n}/comments?per_page=100`).then(cs => {
+    cs = cs.filter(c => isMine(c) && !/fabrica-estado:/.test(c.body || '')).slice(-15).reverse();
+    view({title: 'Bitácora', body: cs.map(c => { const r = rolDe(c) || 'consejero'; return `<div class="msg">${av(r)}<div class="bub"><div class="nm" style="color:${ROLES[r].shirt}">${ROLES[r].nombre}</div><details><summary>${md(primerParrafo(c.body))}<span class="mas">Ver completo</span></summary>${md(clean(c.body))}</details><span class="hora">${ago(c.created_at)}</span></div></div>`; }).join('') || '<div class="vacio">Sin registros.</div>'});
+  }).catch(e => view({body: `<div class="vacio">${esc(e.message)}</div>`}));
 }
 function openProjects() {
   const cur = active();
-  sheet(`<h3>Proyectos</h3><p>El equipo trabaja en un solo proyecto a la vez. Al cambiar, el otro queda en pausa desde su próximo turno; lo que estaba a medio camino se retoma cuando vuelvas.</p>
-    ${REPOS.map(R => { const d = state.repos[R.name] || EMPTY, pend = d.props.length + d.prs.length + d.queue.length + d.planned.length + d.ideas.length, on = R.name === (cur || {}).name;
-      return `<div class="item"><span class="tag" style="color:${R.color}">${on ? 'activo' : 'en pausa'}</span><b>${esc(R.nombre)}</b><span class="meta">${esc(R.name)} · ${pend} pendiente(s) · ${d.dossierN ? 'el equipo ya lo conoce' : 'onboarding pendiente'} · turnos ${R.despierto ? 'encendidos' : 'apagados'}</span><div class="acts">${on ? '' : `<button class="primary" data-act="activar" data-repo="${R.name}">Trabajar en este</button>`}${d.dossierN ? `<button data-open="${R.name}/${d.dossierN}">Qué saben de él</button>` : ''}</div></div>`; }).join('')}
-    ${PENDIENTES.map(P => `<div class="item"><span class="tag t-prop">por conectar</span><b>${esc(P.nombre)}</b><span class="meta">${esc(P.name)}</span><div class="acts"><a class="btn primary" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Pedir a la Sede que lo conecte</a></div><small>Escríbele: «Conecta el proyecto ${esc(P.nombre)}». Dar acceso de escritura a un repo nuevo lo aprueba siempre una persona.</small></div>`).join('')}
-    <h2>Agregar proyecto</h2>
-    <form id="addproj" class="card">
-      <label for="np-url">Link del repo en GitHub</label><input id="np-url" required placeholder="https://github.com/gonzalolavin99/mi-app" inputmode="url" autocomplete="off">
-      <label for="np-nombre">Nombre para identificarlo</label><input id="np-nombre" required maxlength="40" placeholder="Ej: Portafolio">
+  view({title: 'Proyectos', body: `<p class="dim">El equipo trabaja en un proyecto a la vez.</p>
+    ${REPOS.map(R => { const d = dOf(R), on = R.name === (cur || {}).name, pend = d.props.length + d.prs.length + d.queue.length + d.planned.length;
+      return `<div class="card"><div class="tags"><span class="tag" style="color:${R.color}">● ${on ? 'activo' : 'en pausa'}</span>${R.despierto ? '' : '<span class="tag">turnos apagados</span>'}</div><div class="t">${esc(R.nombre)}</div><div class="s">${pend} pendiente(s) · ${d.dossierN ? 'el equipo ya lo conoce' : 'aún no lo estudian'}</div><div class="btns">${on ? '' : `<button class="b p" data-act="activar" data-repo="${R.name}">Trabajar en este</button>`}${d.dossierN ? `<button class="b" data-open="${R.name}/${d.dossierN}">Qué saben</button>` : ''}${d.bitN ? `<button class="b" data-bitacora="${R.name}/${d.bitN}">Bitácora</button>` : ''}</div></div>`; }).join('')}
+    ${PENDIENTES.map(P => `<div class="card"><div class="tags"><span class="tag t-warn">por conectar</span></div><div class="t">${esc(P.nombre)}</div><div class="s">Pídele a la Sede: «Conecta el proyecto ${esc(P.nombre)}».</div><div class="btns"><a class="b p" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Abrir la Sede</a></div></div>`).join('')}
+    <details class="acc"><summary><span>＋ Agregar proyecto</span><span class="chev">›</span></summary><div class="acc-in">
+    <form id="addproj">
+      <label for="np-url">Link del repo</label><input id="np-url" required placeholder="https://github.com/${OWNER}/mi-app" inputmode="url" autocomplete="off">
+      <label for="np-nombre">Nombre</label><input id="np-nombre" required maxlength="40" placeholder="Ej: Portafolio">
       <label>Color</label><div class="paleta">${PALETA.map((c, i) => `<label><input type="radio" name="np-color" value="${c}" ${i === (REPOS.length + PENDIENTES.length) % PALETA.length ? 'checked' : ''}><i style="background:${c}"></i></label>`).join('')}</div>
-      <button class="primary" type="submit">Agregar</button>
-      <small>Queda «por conectar» hasta que la Sede lo conecta: le crea su manual y sus turnos. Después, la primera vez que lo actives, el equipo lo estudia completo (onboarding) antes de proponer nada.</small>
-    </form>`);
+      <button class="b p full" type="submit">Agregar</button>
+    </form></div></details>`});
+}
+function openSettings() {
+  view({title: 'Ajustes', body: `
+    <h2>Estilo</h2><div class="seg">${['pixel', 'oscuro'].map(s => `<button class="chipb ${style() === s ? 'on' : ''}" data-setstyle="${s}">${s === 'pixel' ? 'Pixel' : 'Oscuro'}</button>`).join('')}</div>
+    <h2>Llave de GitHub</h2>
+    <p class="dim">${token ? '✅ Activa en este dispositivo.' : 'Sin llave solo puedes mirar.'}</p>
+    <form id="tokform"><input id="tok" type="password" autocomplete="off" value="${esc(token)}" placeholder="github_pat_…"><button class="b p full" type="submit">Guardar</button></form>
+    <p class="dim small">Permisos «Read and write»: Issues, Pull requests y Contents, sobre tus proyectos y fabrica-oficina.</p>
+    <label class="check"><input id="sonido" type="checkbox" ${store.get('fabrica-sonido', false) ? 'checked' : ''}> Sonar cuando llegue algo nuevo</label>`});
 }
 async function addProject(url, nombre, color) {
   const m = url.trim().match(/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[\/?#].*)?$/i);
   if (!m) throw new Error('Ese link no parece un repo de GitHub.');
-  if (m[1].toLowerCase() !== OWNER) throw new Error('Por ahora solo se pueden agregar repos de tu cuenta (' + OWNER + ').');
+  if (m[1].toLowerCase() !== OWNER) throw new Error('Por ahora solo repos de tu cuenta (' + OWNER + ').');
   const repo = m[2];
   if (REPOS.concat(PENDIENTES).some(r => r.name === repo)) throw new Error('Ese repo ya está en la fábrica.');
   await gh(repo);
@@ -360,23 +438,12 @@ async function addProject(url, nombre, color) {
   await gh('fabrica-oficina/contents/proyectos.json', {method: 'PUT', body: {message: `Agregar proyecto ${nombre.trim()} (por conectar)`, content: btoa(unescape(encodeURIComponent(body))), sha: f.sha}});
   applyRegistry(reg); store.set('fabrica-registro', reg);
 }
-function openSettings() {
-  sheet(`
-    <h3>Ajustes</h3>
-    <p>${token ? '✅ Llave activa en este dispositivo: puedes aprobar, rechazar, conversar, crear tareas, cambiar de proyecto y fusionar desde aquí.' : 'Sin llave puedes mirar, pero no actuar. Ábrela con tu enlace personal o pégala aquí.'}</p>
-    <form id="tokform">
-      <label for="tok">Llave personal de GitHub</label>
-      <input id="tok" type="password" autocomplete="off" value="${esc(token)}" placeholder="github_pat_…">
-      <button class="primary" type="submit">Guardar en este dispositivo</button>
-    </form>
-    <small>Permisos en «Read and write»: Issues, Pull requests y Contents, sobre tus proyectos y sobre <b>fabrica-oficina</b> (ahí se guarda la lista de proyectos). Si la llave es por repos seleccionados, agrega cada proyecto nuevo a la llave. Se guarda solo en este navegador; bórrala dejando el campo vacío.</small>
-    <label class="check"><input id="sonido" type="checkbox" ${store.get('fabrica-sonido', false) ? 'checked' : ''}> Sonar cuando llegue algo nuevo a la bandeja</label>`);
-}
 
-// ---------- acciones (siempre dentro de la app) ----------
-function needToken() { if (token) return false; notice('Para hacer eso desde aquí activa tu llave (⚙).'); openSettings(); return true; }
-function busy(on, txt) { const L = $('loader'); ($('sheet').open ? $('sheet') : document.body).appendChild(L); L.classList.toggle('on', !!on); document.body.classList.toggle('busy', !!on); $('loader').querySelector('span').textContent = txt || 'Guardando…'; }
-async function act(fn, okMsg) { busy(true); try { await fn(); busy(true, 'Actualizando…'); notice(okMsg); await load(); return true; } catch (e) { notice(e.message); alert(e.message); return false; }  finally { busy(false); } }
+// ---------- acciones ----------
+function needToken() { if (token) return false; notice('Para hacer eso activa tu llave en ⚙.'); openSettings(); return true; }
+function busy(on, txt) { const L = $('loader'); ($('sheet').open ? $('sheet') : document.body).appendChild(L); L.querySelector('span').textContent = txt || 'Guardando…'; L.classList.toggle('on', !!on); document.body.classList.toggle('busy', !!on); }
+async function act(fn, okMsg, txt) { busy(true, txt); try { await fn(); busy(true, 'Actualizando…'); notice(okMsg); toast(okMsg); await load(); return true; } catch (e) { notice(e.message); alert(e.message); return false; } finally { busy(false); } }
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
 async function setActive(repo) {
   for (const R of REPOS) {
     const d = state.repos[R.name]; if (!d || !d.manualN) continue;
@@ -385,58 +452,56 @@ async function setActive(repo) {
   }
   Scene.projectChanged();
 }
-async function newIssue(repo, title, body, labels) {
-  if (needToken()) return false;
-  return act(() => gh(`${repo}/issues`, {method: 'POST', body: {title, body, labels}}), 'Enviado.');
-}
+async function newIssue(repo, title, body, labels) { if (needToken()) return false; return act(() => gh(`${repo}/issues`, {method: 'POST', body: {title, body, labels}}), 'Enviado. Itachi te responde en 1-2 minutos.', 'Enviando…'); }
 
 document.addEventListener('click', async e => {
-  const ag = e.target.closest('.who'); if (ag) return openAgent(ag.dataset.role);
+  if (e.target.closest('[data-back]')) { if (backFn) return backFn(); return $('sheet').close(); }
+  const ag = e.target.closest('[data-role]'); if (ag) return openAgent(ag.dataset.role);
   if (e.target.id === 'scene') { const role = Scene.pick(e.clientX, e.clientY); if (role) openAgent(role); return; }
-  const op = e.target.closest('[data-open]'); if (op) { const [repo, n, kind] = op.dataset.open.split('/'); return openItem(repo, n, kind); }
-  if (e.target.closest('[data-close]') || e.target === $('sheet')) return $('sheet').close();
+  const ch = e.target.closest('[data-chat]'); if (ch) { const [r, n, k] = ch.dataset.chat.split('/'); return openChat(r, n, k); }
+  const op = e.target.closest('[data-open]'); if (op) { const [r, n, k] = op.dataset.open.split('/'); return openTask(r, n, k); }
+  const bt = e.target.closest('[data-bitacora]'); if (bt) { const [r, n] = bt.dataset.bitacora.split('/'); return openBitacora(r, n); }
+  if (e.target === $('sheet')) return $('sheet').close();
   if (e.target.closest('#proyecto')) return openProjects();
-  const st = e.target.closest('[data-setstyle]'); if (st) { document.body.dataset.style = st.dataset.setstyle; store.set('fabrica-style', st.dataset.setstyle); Scene.setTheme(st.dataset.setstyle); return render(); }
+  const fl = e.target.closest('[data-filtro]'); if (fl) { filters.tipo = fl.dataset.filtro; store.set('fabrica-filtros', filters); return render(); }
+  const st = e.target.closest('[data-setstyle]'); if (st) { document.body.dataset.style = st.dataset.setstyle; store.set('fabrica-style', st.dataset.setstyle); Scene.setTheme(st.dataset.setstyle); render(); return openSettings(); }
   const tb = e.target.closest('[data-tab]');
   if (tb) { document.querySelectorAll('.tab').forEach(s => { s.hidden = s.id !== 'tab-' + tb.dataset.tab; }); document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b === tb)); window.scrollTo(0, 0); return; }
   const b = e.target.closest('[data-act]'); if (!b) return;
   const {act: a, repo, n} = b.dataset, R = REPOS.find(r => r.name === repo);
   if (needToken()) return;
-  if (a === 'activar' && confirm(`¿Poner al equipo a trabajar en ${R.short}? El proyecto actual queda en pausa.`)) { if (await act(() => setActive(repo), `El equipo trabaja ahora en ${R.nombre}.`)) { if (!R.despierto) sheet(`<h3>Último paso: despertar al equipo en ${esc(R.nombre)}</h3><p>Para no gastar tu cuota, los turnos de los proyectos en pausa están apagados. Pídele a la Sede que los encienda:</p><div class="card"><b>«Cambié el proyecto activo a ${esc(R.nombre)}: enciende sus turnos y apaga los del anterior.»</b></div><div class="rowbtns"><a class="btn primary" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Abrir la Sede</a></div>`); else $('sheet').close(); } }
-  if (a === 'fusionar' && confirm(`¿Fusionar el PR #${n}?` + (R.despliega ? ' Esto lo despliega a producción.' : ''))) { if (await act(() => gh(`${repo}/pulls/${n}/merge`, {method: 'PUT', body: {merge_method: 'squash'}}), `PR #${n} fusionado${R.despliega ? ': Vercel lo está desplegando' : ''}.`)) $('sheet').close(); }
-  if (a === 'aprobar') { if (await act(() => gh(`${repo}/issues/${n}/labels`, {method: 'POST', body: {labels: ['fabrica:aprobada']}}), `#${n} aprobada. El equipo la toma en su próximo turno Dev.`)) $('sheet').close(); }
-  if (a === 'rechazar' && confirm(`¿Rechazar y cerrar la propuesta #${n}?`)) { if (await act(() => gh(`${repo}/issues/${n}`, {method: 'PATCH', body: {state: 'closed', state_reason: 'not_planned'}}), `#${n} rechazada. No la volverán a proponer.`)) $('sheet').close(); }
-  if (a === 'cerrar' && confirm(`¿Cerrar la idea #${n}?`)) { if (await act(() => gh(`${repo}/issues/${n}`, {method: 'PATCH', body: {state: 'closed'}}), `Idea #${n} cerrada.`)) $('sheet').close(); }
+  const cerrar = ok => { if (ok && $('sheet').open) $('sheet').close(); };
+  if (a === 'activar' && confirm(`¿Poner al equipo a trabajar en ${R.nombre}?`)) { if (await act(() => setActive(repo), `El equipo trabaja ahora en ${R.nombre}.`, 'Cambiando…')) { if (!R.despierto) view({title: 'Último paso', body: `<p>Los turnos de ${esc(R.nombre)} están apagados para ahorrar cuota. Pídele a la Sede: <b>«Enciende los turnos de ${esc(R.nombre)}»</b>.</p><a class="b p full" href="https://claude.ai/code/${REG.sede}" target="_blank" rel="noopener">Abrir la Sede</a>`}); else cerrar(true); } }
+  if (a === 'fusionar' && confirm(`¿Fusionar este cambio?` + (R.despliega ? ' Se despliega a producción.' : ''))) cerrar(await act(() => gh(`${repo}/pulls/${n}/merge`, {method: 'PUT', body: {merge_method: 'squash'}}), `Fusionado${R.despliega ? ' y desplegando' : ''}.`, 'Fusionando…'));
+  if (a === 'aprobar') cerrar(await act(() => gh(`${repo}/issues/${n}/labels`, {method: 'POST', body: {labels: ['fabrica:aprobada']}}), 'Aprobada. Itachi la planifica.', 'Aprobando…'));
+  if (a === 'rechazar' && confirm('¿Rechazar esta propuesta?')) cerrar(await act(() => gh(`${repo}/issues/${n}`, {method: 'PATCH', body: {state: 'closed', state_reason: 'not_planned'}}), 'Rechazada.', 'Rechazando…'));
+  if (a === 'cerrar' && confirm('¿Cerrar esta idea?')) cerrar(await act(() => gh(`${repo}/issues/${n}`, {method: 'PATCH', body: {state: 'closed'}}), 'Idea cerrada.', 'Cerrando…'));
 });
 document.addEventListener('change', e => {
-  const k = e.target.dataset.filter; if (k) { filters[k] = e.target.value; store.set('fabrica-filtros', filters); render(); }
   if (e.target.id === 'sonido') store.set('fabrica-sonido', e.target.checked);
   if (e.target.id === 't-repo' || e.target.id === 'i-repo') e.target.dataset.touched = '1';
 });
+document.addEventListener('input', e => { if (e.target.id === 'reply') { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'; } });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target, btn = f.querySelector('button[type=submit]');
   if (btn) { if (btn.disabled) return; btn.disabled = true; setTimeout(() => { btn.disabled = false; }, 4000); }
-  if (f.id === 'addproj') { if (needToken()) return; try { await addProject($('np-url').value, $('np-nombre').value, (f.querySelector('input[name=np-color]:checked') || {}).value || PALETA[0]); notice('Proyecto agregado. Ahora pídele a la Sede que lo conecte.'); openProjects(); } catch (err) { alert(err.message); } return; }
-  if (f.id === 'tokform') { token = $('tok').value.trim(); store.set('fabrica-token', token); $('sheet').close(); notice(token ? 'Llave guardada.' : 'Llave borrada.'); return load(); }
+  if (f.id === 'addproj') { if (needToken()) return; try { busy(true, 'Agregando…'); await addProject($('np-url').value, $('np-nombre').value, (f.querySelector('input[name=np-color]:checked') || {}).value || PALETA[0]); toast('Proyecto agregado'); openProjects(); } catch (err) { alert(err.message); } finally { busy(false); } return; }
+  if (f.id === 'tokform') { token = $('tok').value.trim(); store.set('fabrica-token', token); $('sheet').close(); toast(token ? 'Llave guardada' : 'Llave borrada'); return load(); }
   if (f.id === 'task') { if (await newIssue($('t-repo').value, $('t-title').value.trim(), ($('t-body').value.trim() || '(sin detalle)') + '\n\n— Tarea directa de Gonzalo desde la oficina.', ['fabrica:aprobada'])) f.reset(); return; }
-  if (f.id === 'idea') { if (await newIssue($('i-repo').value, $('i-title').value.trim(), ($('i-body').value.trim() || '(sin detalle)') + '\n\n— Idea de Gonzalo para el Consejero.', ['fabrica:idea'])) f.reset(); return; }
+  if (f.id === 'idea') { const txt = $('i-body').value.trim(); if (!txt) return; const t = $('i-title').value.trim() || corta(txt, 60); if (await newIssue($('i-repo').value, t, txt + '\n\n— Idea de Gonzalo para el Consejero.', ['fabrica:idea'])) f.reset(); return; }
   if (f.dataset.reply) {
-    const [repo, n] = f.dataset.reply.split('/'), txt = f.querySelector('textarea').value.trim(); if (!txt || needToken()) return;
-    if (await act(() => gh(`${repo}/issues/${n}/comments`, {method: 'POST', body: {body: txt}}), 'Mensaje enviado.')) openItem(repo, n, f.closest('#sheet-body').innerHTML.includes('Cambios (') ? 'pr' : '');
+    const [repo, n, kind] = f.dataset.reply.split('/'), txt = f.querySelector('textarea').value.trim(); if (!txt || needToken()) return;
+    if (await act(() => gh(`${repo}/issues/${n}/comments`, {method: 'POST', body: {body: txt}}), 'Mensaje enviado.', 'Enviando…')) { delete cache[repo + n]; openChat(repo, n, kind); }
   }
 });
 $('refresh').addEventListener('click', load);
 $('settings').addEventListener('click', openSettings);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - state.fetchedAt > 60000) load(); });
 
-document.body.dataset.style = store.get('fabrica-style', 'pixel') === 'pixel' ? 'pixel' : 'oscuro';
-function fillSelects() {
-  for (const id of ['t-repo', 'i-repo']) { const v = $(id).value; $(id).innerHTML = REPOS.map(R => `<option value="${R.name}">${esc(R.nombre)}</option>`).join(''); if (v) $(id).value = v; }
-  $('f-repo').innerHTML = '<option value="todos">Todos los proyectos</option>' + REPOS.map(R => `<option value="${R.name}">${esc(R.nombre)}</option>`).join('');
-  for (const k of ['repo', 'tipo', 'prio']) $('f-' + k).value = filters[k];
-}
+function fillSelects() { for (const id of ['t-repo', 'i-repo']) { const v = $(id).value; $(id).innerHTML = REPOS.map(R => `<option value="${R.name}">${esc(R.nombre)}</option>`).join(''); if (v) $(id).value = v; } }
+document.body.dataset.style = store.get('fabrica-style', 'oscuro') === 'pixel' ? 'pixel' : 'oscuro';
 fillSelects();
-Scene.init($('scene'), {getState: () => [team().map(a => ({role: a.role, s: a.s, accion: a.e && a.e.accion, paso: a.e && a.e.paso}))], roles: ROLES, isDay, project: () => { const R = active(); return R ? {name: R.short, color: R.color} : {name: 'SIN PROYECTO', color: '#777'}; }});
+Scene.init($('scene'), {getState: () => [team().map(a => ({role: a.role, s: a.s === 'work' ? 'work' : a.s === 'you' ? 'wait' : a.s === 'soon' ? 'queue' : 'sleep', accion: a.e && a.e.accion, paso: a.e && a.e.paso}))], roles: ROLES, isDay, project: () => { const R = active(); return R ? {name: R.short, color: R.color} : {name: 'SIN PROYECTO', color: '#777'}; }});
 Scene.setTheme(style());
 render(); setInterval(render, 20000);
 load();

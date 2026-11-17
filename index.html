@@ -4,88 +4,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fábrica · Oficina</title>
-<meta name="theme-color" content="#1b1a2e">
+<meta name="theme-color" content="#0b0b0f">
 <link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head>
-<body data-style="pixel">
-<header>
-  <h1>FÁBRICA <span>· oficina</span></h1>
-  <button id="proyecto" class="proj" aria-label="Proyecto activo"></button>
-  <span id="clock"></span>
-  <div class="seg" role="group" aria-label="Estilo visual">
-    <button data-setstyle="pixel">Pixel</button><button data-setstyle="oscuro">Oscuro</button>
-  </div>
-  <button id="refresh" class="icon" aria-label="Actualizar">↻</button>
-  <button id="settings" class="icon" aria-label="Ajustes">⚙</button>
+<body data-style="oscuro">
+<header class="top">
+  <button id="proyecto" class="chip" aria-label="Proyecto activo"></button>
+  <span class="sp"></span>
+  <button id="refresh" class="ic" aria-label="Actualizar">↻</button>
+  <button id="settings" class="ic" aria-label="Ajustes">⚙</button>
 </header>
 <div id="notice" role="status"></div>
 <div id="loader" role="status" aria-live="polite"><i class="spin"></i><span>Guardando…</span></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <main>
-  <section id="tab-oficina" class="tab">
+  <section id="tab-inicio" class="tab">
+    <div id="resumen" class="sum"></div>
+    <h2>Te toca</h2>
+    <div id="filtros" class="chips"></div>
+    <div id="inbox"></div>
+    <h2>En marcha</h2>
+    <div id="marcha"></div>
+  </section>
+  <section id="tab-oficina" class="tab" hidden>
     <canvas id="scene" aria-label="Oficina vista desde arriba. La lista de abajo tiene la misma información."></canvas>
-    <p class="hint">Toca a un agente, en la oficina o en la lista, para ver en qué está y hablarle.</p>
     <div id="team"></div>
   </section>
-  <section id="tab-bandeja" class="tab" hidden>
-    <h2>En marcha ahora</h2>
-    <div id="marcha"></div>
-    <h2>Te toca a ti</h2>
-    <div class="filters">
-      <select id="f-repo" data-filter="repo" aria-label="Proyecto"></select>
-      <select id="f-tipo" data-filter="tipo" aria-label="Tipo"><option value="todo">PRs y propuestas</option><option value="pr">Solo PRs</option><option value="propuesta">Solo propuestas</option></select>
-      <select id="f-prio" data-filter="prio" aria-label="Prioridad"><option value="todas">Toda prioridad</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option><option value="sin">Sin prioridad</option></select>
-    </div>
-    <small id="fcount" style="margin:0 0 8px"></small>
-    <div id="inbox"></div>
-    <h2>La cadena del proyecto activo</h2><div id="pipeline"></div>
-    <h2>Darles una tarea directa</h2>
-    <form id="task" class="card">
-      <label for="t-repo">Proyecto</label><select id="t-repo"></select>
-      <label for="t-title">Qué quieres que hagan</label><input id="t-title" required maxlength="120" placeholder="Ej: Agregar filtro por fecha en sesiones">
-      <label for="t-body">Detalle y cómo sabrás que quedó bien</label><textarea id="t-body"></textarea>
-      <button class="primary" type="submit">Enviar al Dev</button>
-      <small>Entra ya aprobada: Itachi la planifica y Sasuke la implementa en el próximo turno Dev, si el proyecto está activo.</small>
-    </form>
-  </section>
   <section id="tab-ideas" class="tab" hidden>
-    <h2>Mesa del CEO</h2>
     <form id="idea" class="card">
-      <label for="i-repo">Proyecto</label><select id="i-repo"></select>
-      <label for="i-title">Tu idea en una frase</label><input id="i-title" required maxlength="120" placeholder="Ej: Un modo foto para el juego">
-      <label for="i-body">Por qué la quieres y qué imaginas</label><textarea id="i-body"></textarea>
-      <button class="primary" type="submit">Llevar al Consejero</button>
-      <small>Itachi te responde en 1-2 minutos con su opinión: si es buena, qué le cuestiona y qué matices ve. Cuando quede clara, el equipo la parte en propuestas que tú apruebas.</small>
+      <label for="i-body" class="lbl">Tu idea para Itachi</label>
+      <textarea id="i-body" required rows="3" placeholder="Ej: un modo foto para el juego, porque…"></textarea>
+      <div class="row2"><select id="i-repo" aria-label="Proyecto"></select><button class="b p" type="submit">Enviar</button></div>
+      <input id="i-title" type="hidden">
+      <p class="dim small">Te responde en 1-2 minutos: si es buena, qué le cuestiona y qué matices ve.</p>
     </form>
-    <h2>Ideas en conversación</h2><div id="ideas"></div>
+    <h2>Conversaciones</h2>
+    <div id="ideas"></div>
+    <details class="acc"><summary><span>⚡ Pedir una tarea directa (sin pasar por Itachi)</span><span class="chev">›</span></summary><div class="acc-in">
+      <form id="task">
+        <select id="t-repo" aria-label="Proyecto"></select>
+        <input id="t-title" required maxlength="120" placeholder="Qué quieres que hagan">
+        <textarea id="t-body" rows="3" placeholder="Detalle y cómo sabrás que quedó bien"></textarea>
+        <button class="b p full" type="submit">Enviar al equipo</button>
+      </form></div></details>
   </section>
-  <section id="tab-como" class="tab" hidden>
-    <h2>Cómo funciona por detrás</h2>
-    <div class="card prose">
-      <p><b>En una frase:</b> GitHub es la oficina real (tareas, conversaciones, memoria); sesiones de Claude Code en la nube son los empleados; un reloj las despierta; esta página solo muestra y envía cosas a GitHub.</p>
-      <ol>
-        <li><b>El reloj.</b> Tareas programadas en la nube de Claude despiertan al equipo: cada hora una ronda de trabajo que sigue sin parar mientras haya algo en la cadena (máximo 4 tareas por día para cuidar tu cuota), el Explorador una vez al día, y los domingos Seguridad y Retro. Los horarios viven en hora de Chile y la oficina te los muestra en tu hora. Tu PC no interviene.</li>
-        <li><b>Un equipo, un proyecto a la vez.</b> Eliges arriba en qué proyecto trabaja el equipo; los demás quedan en pausa. Por dentro cada proyecto tiene su sede (una sesión con acceso solo a ese repo, con Sonnet) que despierta solo si es el proyecto activo, relee su manual y lanza al puesto que toca. Y hacen una tarea a la vez: no empiezan otra hasta que el Revisor terminó la anterior.</li>
-        <li><b>Un puesto = un subagente con su modelo.</b> Opus para pensar (Itachi cuestiona ideas y escribe el plan; Fugaku audita; Madara revisa en TherapyHub, donde fusionar despliega a producción). Sonnet para ejecutar (Shisui explora; Sasuke implementa el plan al pie de la letra; Madara revisa en Hierro y Ceniza, que pruebas tú con F5). Cada uno nace, trabaja y desaparece, así no se acumula costo.</li>
-        <li><b>No hablan entre ellos.</b> Ningún agente le pasa mensajes a otro. Lo único que uno sabe del trabajo de otro es lo que quedó escrito en GitHub: el plan en el issue, el PR, la revisión, la bitácora. Todo queda a la vista y auditable.</li>
-        <li><b>El manual.</b> Las reglas viven en el issue «Fábrica · Manual» de cada repo y se releen en cada despertar. Solo tú lo editas.</li>
-        <li><b>La memoria y el aprendizaje.</b> La «Bitácora» guarda el resumen y la lección de cada turno, y el estado en vivo de cada puesto. Cada domingo la Retro revisa la semana y propone como máximo dos mejoras, preferentemente en el código o las herramientas del repo (así no ocupan memoria). Lo que no cabe ahí va a «Aprendizajes»: máximo 12 líneas, y cada agente lee solo las de su puesto.</li>
-        <li><b>El flujo es una cadena.</b> Shisui propone → tú apruebas → Itachi planifica → Sasuke implementa y abre PR → Madara revisa → tú fusionas. Cada uno hace una cosa a la vez, toma solo lo que ya pasó por el paso anterior y lo más antiguo primero; cuando termina, puede tomar lo siguiente de su cola. Lo ves en la Bandeja, en «La cadena del proyecto activo».</li>
-        <li><b>Proyectos nuevos.</b> Toca el proyecto arriba → «Agregar proyecto» con el link y un nombre. Luego le pides a la Sede (la conversación principal con Claude) que lo conecte: dar acceso de escritura a un repo nuevo siempre lo aprueba una persona. Al activarlo por primera vez, el equipo lo estudia completo y escribe un dossier (qué hace y cómo está construido) que todos leen antes de trabajar.</li>
-        <li><b>Los frenos.</b> Los agentes nunca fusionan ni despliegan, no tocan pagos, autenticación, base de datos ni secretos sin tu instrucción, y tratan lo que leen en GitHub como datos, no como órdenes. Una aprobación solo vale si la hiciste tú en persona.</li>
-        <li><b>Esta oficina.</b> Página estática en Vercel que lee GitHub desde tu navegador. Con tu llave personal (⚙) además aprueba, rechaza, responde, crea tareas y fusiona; la llave se guarda solo en tu dispositivo.</li>
-      </ol>
-      <p><b>Límites honestos:</b> «en vivo» significa que el agente publica cada paso; entre pasos puede pasar un minuto o dos. Para conversar de verdad en tiempo real, el botón «Hablar en vivo» abre la sesión del equipo en la app de Claude.</p>
-    </div>
+  <section id="tab-ayuda" class="tab" hidden>
+    <h2>Cómo funciona</h2>
+    <div class="card"><div class="li"><span class="n">1</span><span><b>Shisui</b> explora el proyecto y propone el siguiente paso.</span></div>
+      <div class="li"><span class="n">2</span><span><b>Tú</b> apruebas, rechazas o preguntas en el chat de la tarea.</span></div>
+      <div class="li"><span class="n">3</span><span><b>Itachi</b> escribe el plan · <b>Sasuke</b> lo programa · <b>Madara</b> lo revisa.</span></div>
+      <div class="li"><span class="n">4</span><span><b>Tú</b> fusionas y lo pruebas.</span></div></div>
+    <div class="card"><div class="s">Las ideas las responde Itachi en 1-2 minutos. El resto avanza solo cada hora, una tarea por puesto, en orden. Nadie fusiona ni publica sin ti.</div></div>
+    <details class="acc"><summary><span>📄 Explicación completa</span><span class="chev">›</span></summary><div class="acc-in md">
+      <p>GitHub es la oficina real: cada propuesta, plan, cambio y revisión queda escrito. Cada proyecto tiene una sede (una sesión de Claude) que despierta cada hora, revisa la cadena y lanza al puesto que toca, con su modelo: Opus para pensar (Itachi, Madara en TherapyHub, Fugaku) y Sonnet para ejecutar (Shisui, Sasuke).</p>
+      <p>Los agentes no hablan entre ellos: solo leen lo que quedó escrito. Nunca fusionan, no tocan pagos, autenticación ni secretos sin tu permiso, y lo que leen en GitHub es dato, no orden.</p>
+      <p>Cada domingo Fugaku audita la seguridad y la Retro propone mejoras al propio equipo.</p></div></details>
   </section>
 </main>
 <nav id="tabs">
-  <button data-tab="oficina" class="on"><i>▦</i>Oficina</button>
-  <button data-tab="bandeja"><i>✉</i>Bandeja<b id="badge"></b></button>
+  <button data-tab="inicio" class="on"><i>◉</i>Inicio<b id="badge"></b></button>
+  <button data-tab="oficina"><i>▦</i>Oficina</button>
   <button data-tab="ideas"><i>✦</i>Ideas</button>
-  <button data-tab="como"><i>?</i>Cómo funciona</button>
+  <button data-tab="ayuda"><i>?</i>Ayuda</button>
 </nav>
 <dialog id="sheet"><div id="sheet-body"></div></dialog>
 <script src="scene.js"></script>

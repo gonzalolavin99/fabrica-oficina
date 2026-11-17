@@ -1,0 +1,148 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<style>
+:root{--bg:#0b0b0f;--panel:#16161c;--panel2:#1d1d25;--line:#2a2a34;--ink:#f2e9ea;--dim:#9a8f94;--acc:#e3344b;--ok:#5fd38a;--info:#7aa7ff;--warn:#f6c453}
+*{box-sizing:border-box}body{margin:0;background:#2b2b33;font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+.dir{display:flex;gap:28px;padding:28px;align-items:flex-start;width:max-content}
+.lab{width:300px;color:#ddd}.lab h1{font-size:26px;margin:0 0 8px;color:#fff}.lab p{margin:0 0 10px;color:#c9c3c6;font-size:15px}.lab b{color:#fff}
+.phone{width:375px;height:780px;background:var(--bg);border-radius:34px;border:8px solid #000;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:#c0503a;display:inline-block}
+.sp{flex:1}.ic{width:34px;height:34px;border-radius:50%;background:var(--panel);display:grid;place-items:center;color:var(--dim)}
+.scroll{flex:1;overflow:hidden;padding:0 14px 14px}
+.sum{display:flex;gap:8px;margin:4px 0 14px}.sum div{flex:1;background:var(--panel);border-radius:14px;padding:10px;text-align:center}
+.sum b{display:block;font-size:22px}.sum span{font-size:12px;color:var(--dim)}
+h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:14px 2px 8px}
+.card{background:var(--panel);border-radius:16px;padding:14px;margin-bottom:10px}
+.card .t{font-weight:700;font-size:16px;margin:6px 0 4px}.card .s{color:#d7cfd2;font-size:14px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}.tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--panel2);color:var(--dim)}
+.alta{background:#3a1218;color:#ff8a9a}.media{background:#3a3112;color:var(--warn)}.baja{background:#12301e;color:var(--ok)}
+.btns{display:flex;gap:8px;margin-top:12px}.b{flex:1;text-align:center;padding:11px;border-radius:12px;font-weight:700;font-size:14px;background:var(--panel2)}
+.b.p{background:var(--acc);color:#fff}.b.g{background:transparent;border:1px solid var(--line);color:var(--dim)}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)}.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;color:#0b0b0f}
+.steps{display:flex;gap:3px;margin:10px 0 6px}.steps i{flex:1;height:6px;border-radius:3px;background:var(--line)}.steps i.ok{background:#6b6b78}.steps i.now{background:var(--acc)}
+.stepl{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}
+.tabs{display:flex;border-top:1px solid var(--line);background:var(--panel)}.tabs div{flex:1;text-align:center;padding:10px 0 14px;font-size:11px;color:var(--dim)}.tabs div b{display:block;font-size:18px}.tabs .on{color:var(--acc)}
+.acc{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;background:var(--panel);border-radius:14px;margin-bottom:8px;color:#d7cfd2;font-size:14px}
+.li{display:flex;gap:10px;margin:8px 0;font-size:14px}.li .n{width:22px;height:22px;border-radius:50%;background:var(--panel2);display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.sticky{padding:12px 14px 18px;background:var(--panel);border-top:1px solid var(--line);display:flex;gap:8px}
+.quote{border-left:3px solid var(--info);padding:4px 10px;color:#d7cfd2;font-size:14px;margin:8px 0}
+.msg{display:flex;gap:8px;margin:10px 0}.bub{background:var(--panel);border-radius:4px 16px 16px 16px;padding:10px 12px;font-size:14px;max-width:270px}
+.bub .nm{font-size:12px;font-weight:700;margin-bottom:3px}.me{justify-content:flex-end}.me .bub{background:#3a1218;border-radius:16px 4px 16px 16px}
+.mini{display:flex;gap:6px;margin-top:8px}.mini span{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;background:var(--acc);color:#fff}.mini span.g{background:var(--panel2);color:var(--ink)}
+.input{margin:0 14px 16px;background:var(--panel);border-radius:999px;padding:12px 16px;color:var(--dim);font-size:14px}
+.day{text-align:center;font-size:11px;color:var(--dim);margin:6px 0}
+.scene{height:250px;border-radius:16px;overflow:hidden;background:#000;margin-bottom:12px}
+.scene img{width:100%;height:100%;object-fit:cover;object-position:50% 38%}
+.row{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--panel);border-radius:14px;margin-bottom:7px}
+.row .x{flex:1}.row .x b{display:block;font-size:15px}.row .x span{font-size:13px;color:var(--dim)}
+.st{font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px}
+.big{font-size:22px;font-weight:800;margin:4px 0 2px}.kv2{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:12px 0}.kv2 span{color:var(--dim)}
+</style></head><body>
+
+<!-- ============ A ============ -->
+<div class="dir" id="A">
+ <div class="lab"><h1>A · Primero tus decisiones</h1>
+  <p>La pantalla de inicio es <b>lo que te toca hacer</b>, en tarjetas de 2 líneas con el botón ahí mismo.</p>
+  <p>Al abrir una tarea ves <b>«En corto»</b>: qué verás en el juego, por qué ahora y cómo probarlo. Lo técnico va <b>plegado</b>.</p>
+  <p>La oficina pixel queda como pestaña aparte.</p>
+  <p><b>Bueno para:</b> decidir rápido desde el celu.</p></div>
+ <div class="phone">
+  <div class="top"><span class="chip"><span class="dot"></span>Hierro y Ceniza ▾</span><span class="sp"></span><span class="ic">⚙</span></div>
+  <div class="scroll">
+   <div class="sum"><div><b>3</b><span>para decidir</span></div><div><b>1</b><span>en marcha</span></div><div><b style="color:var(--ok)">●</b><span>equipo libre</span></div></div>
+   <h2>Te toca</h2>
+   <div class="card"><div class="tags"><span class="tag alta">ALTA</span><span class="tag">Propuesta · tamaño M</span></div>
+    <div class="t">El desertor que se rinde</div><div class="s">Un soldado suelta la espada. Si lo perdonas, más tarde lleva agua al pozo.</div>
+    <div class="btns"><span class="b p">Aprobar</span><span class="b">Ver</span><span class="b g">✕</span></div></div>
+   <div class="card"><div class="tags"><span class="tag media">MEDIA</span><span class="tag">Propuesta · S</span><span class="tag" style="color:var(--warn)">1 pregunta para ti</span></div>
+    <div class="t">Lista de raciones en el pozo</div><div class="s">Una carta que se encuentra en la casa del pozo. ¿Morral o cadáver?</div>
+    <div class="btns"><span class="b p">Responder</span><span class="b">Ver</span></div></div>
+   <h2>En marcha</h2>
+   <div class="card"><div class="t" style="margin-top:0">Frases tras Varga</div>
+    <div class="steps"><i class="ok"></i><i class="now"></i><i></i><i></i><i></i></div>
+    <div class="stepl"><span>Aprobada</span><span style="color:var(--acc)">Plan</span><span>Código</span><span>Revisión</span><span>Tuya</span></div>
+    <div class="s" style="margin-top:8px">Itachi escribe el plan · listo en ~5 min</div></div>
+  </div>
+  <div class="tabs"><div class="on"><b>◉</b>Inicio</div><div><b>▦</b>Oficina</div><div><b>✦</b>Ideas</div><div><b>☰</b>Historial</div></div>
+ </div>
+ <div class="phone">
+  <div class="top"><span style="color:var(--dim)">‹ Volver</span><span class="sp"></span><span class="tag alta">ALTA</span></div>
+  <div class="scroll">
+   <div style="font-size:22px;font-weight:800;margin:4px 0 12px">El desertor que se rinde</div>
+   <h2 style="margin-top:0">En corto</h2>
+   <div class="card">
+    <div class="li"><span class="n">👁</span><span><b>Qué verás:</b> un soldado de Varga suelta la espada y se arrodilla. Si te vas sin rematarlo, después aparece llevando agua al pozo.</span></div>
+    <div class="li"><span class="n">?</span><span><b>Por qué ahora:</b> cierra el Paso 4 y es la 1.ª de las 6 acciones del final bueno.</span></div>
+    <div class="li"><span class="n">▶</span><span><b>Cómo probarlo:</b> F5 → aldea → no lo remates → vuelve al pozo.</span></div>
+   </div>
+   <div class="quote"><b>Itachi:</b> buena y necesaria. Ojo: sin aviso ni barra, el jugador puede no notarlo.</div>
+   <div class="acc"><span>📄 Detalle técnico y archivos</span><span>›</span></div>
+   <div class="acc"><span>✔ Criterios de aceptación (4)</span><span>›</span></div>
+   <div class="acc"><span>💬 Conversación (2)</span><span>›</span></div>
+  </div>
+  <div class="sticky"><span class="b p">Aprobar</span><span class="b">Preguntar</span><span class="b g">Rechazar</span></div>
+ </div>
+</div>
+
+<!-- ============ B ============ -->
+<div class="dir" id="B">
+ <div class="lab"><h1>B · Chat del equipo</h1>
+  <p>Todo es <b>un chat</b>, como WhatsApp: cada agente te escribe 1-2 líneas cuando termina algo o necesita algo, con <b>botones dentro del mensaje</b>.</p>
+  <p>Escribes tus ideas abajo y responde Itachi.</p>
+  <p>Tocar un mensaje abre su hilo con el detalle.</p>
+  <p><b>Bueno para:</b> sentir que hablas con personas. <b>Riesgo:</b> con mucho movimiento, el chat se llena.</p></div>
+ <div class="phone">
+  <div class="top"><span class="chip"><span class="dot"></span>Hierro y Ceniza ▾</span><span class="sp"></span><span class="ic">▦</span></div>
+  <div class="scroll">
+   <div class="day">Hoy</div>
+   <div class="msg"><span class="av" style="background:#f6c453">S</span><div class="bub"><div class="nm" style="color:#f6c453">Shisui · Explorador</div>Propongo <b>el desertor</b> (alta): cierra el Paso 4.<div class="mini"><span>Aprobar</span><span class="g">Ver</span></div></div></div>
+   <div class="msg"><span class="av" style="background:#b08cff">I</span><div class="bub"><div class="nm" style="color:#b08cff">Itachi · Consejero</div>Para las raciones: ¿morral junto al pozo o cadáver? Tu regla D21 dice «nada de cuerpos».<div class="mini"><span class="g">Morral</span><span class="g">Cadáver</span><span class="g">Otra…</span></div></div></div>
+   <div class="msg me"><div class="bub">Morral, sin cuerpos</div></div>
+   <div class="msg"><span class="av" style="background:#6fb3ff">S</span><div class="bub"><div class="nm" style="color:#6fb3ff">Sasuke · Dev</div>Listo el PR de <b>los aldeanos</b>. 11 archivos.</div></div>
+   <div class="msg"><span class="av" style="background:#6fdc8c">M</span><div class="bub"><div class="nm" style="color:#6fdc8c">Madara · Revisor</div>✅ Listo para fusionar. Pruébalo con F5 en la aldea.<div class="mini"><span>Fusionar</span><span class="g">Ver cambios</span></div></div></div>
+  </div>
+  <div class="input">Escribe una idea para Itachi…</div>
+ </div>
+ <div class="phone">
+  <div class="top"><span style="color:var(--dim)">‹ Chat</span><span class="sp"></span><b>El desertor</b><span class="sp"></span><span class="tag alta">ALTA</span></div>
+  <div class="scroll">
+   <div class="card" style="margin-top:6px"><div class="steps"><i class="ok"></i><i class="now"></i><i></i><i></i><i></i></div><div class="stepl"><span>Aprobada</span><span style="color:var(--acc)">Plan</span><span>Código</span><span>Revisión</span><span>Tuya</span></div></div>
+   <div class="msg"><span class="av" style="background:#f6c453">S</span><div class="bub"><div class="nm" style="color:#f6c453">Shisui</div>Un soldado se rinde; si lo perdonas, luego lleva agua al pozo. Pruebas con F5 en la aldea.<div class="mini"><span class="g">Detalle técnico ›</span></div></div></div>
+   <div class="msg me"><div class="bub">¿Se nota que es importante para el final?</div></div>
+   <div class="msg"><span class="av" style="background:#b08cff">I</span><div class="bub"><div class="nm" style="color:#b08cff">Itachi</div>No a propósito: el plan dice «solo cambia el mundo». Si quieres, Kael puede murmurar algo al verlo con el agua.</div></div>
+   <div class="msg"><span class="av" style="background:#b08cff">I</span><div class="bub"><div class="nm" style="color:#b08cff">Itachi</div>Plan listo: 6 archivos, ~90 líneas. Sasuke lo toma en la próxima ronda.<div class="mini"><span class="g">Ver plan ›</span></div></div></div>
+  </div>
+  <div class="input">Responder…</div>
+ </div>
+</div>
+
+<!-- ============ C ============ -->
+<div class="dir" id="C">
+ <div class="lab"><h1>C · Oficina viva, fichas cortas</h1>
+  <p>Arriba sigue la <b>oficina pixel</b>. Debajo, cada agente en <b>una sola línea</b> con un color de estado claro.</p>
+  <p>Su ficha dice <b>una frase grande</b> (qué hace ahora), qué hizo por última vez y qué sigue. El registro va plegado.</p>
+  <p><b>Bueno para:</b> «ver la empresa trabajando», que es lo que te motivó al principio.</p></div>
+ <div class="phone">
+  <div class="top"><span class="chip"><span class="dot"></span>Hierro y Ceniza ▾</span><span class="sp"></span><span class="chip" style="background:var(--acc);border-color:var(--acc)">3 para ti</span></div>
+  <div class="scroll">
+   <div class="scene"><img src="../capturas/v6-oficina.png"></div>
+   <div class="row"><span class="av" style="background:#b08cff">I</span><div class="x"><b>Itachi</b><span>Responde tu mensaje · 03:42</span></div><span class="st" style="background:#12301e;color:var(--ok)">Pronto</span></div>
+   <div class="row"><span class="av" style="background:#f6c453">S</span><div class="x"><b>Shisui</b><span>3 propuestas esperan tu decisión</span></div><span class="st" style="background:#3a1218;color:#ff8a9a">Tú</span></div>
+   <div class="row"><span class="av" style="background:#6fb3ff">S</span><div class="x"><b>Sasuke</b><span>Libre · tomando café</span></div><span class="st" style="background:var(--panel2);color:var(--dim)">Libre</span></div>
+   <div class="row"><span class="av" style="background:#6fdc8c">M</span><div class="x"><b>Madara</b><span>Libre · jugando consola</span></div><span class="st" style="background:var(--panel2);color:var(--dim)">Libre</span></div>
+  </div>
+  <div class="tabs"><div class="on"><b>▦</b>Oficina</div><div><b>✉</b>Bandeja</div><div><b>✦</b>Ideas</div><div><b>?</b>Ayuda</div></div>
+ </div>
+ <div class="phone">
+  <div class="top"><span style="color:var(--dim)">‹ Oficina</span></div>
+  <div class="scroll">
+   <div style="display:flex;gap:12px;align-items:center;margin:4px 0 10px"><span class="av" style="background:#b08cff;width:52px;height:52px;font-size:22px">I</span><div><b style="font-size:20px">Itachi</b><div style="color:var(--dim);font-size:13px">Consejero y Arquitecto · Opus</div></div></div>
+   <div class="card"><span class="st" style="background:#12301e;color:var(--ok)">PRONTO</span><div class="big">Va a responder tu mensaje</div><div class="s">En la idea «ve la lista de tareas» · a las 03:42</div></div>
+   <div class="kv2"><span>Último trabajo</span><b>Propuso 3 pasos para cerrar el Paso 4 · hace 5 h</b><span>Siguiente</span><b>Planificar «El desertor» cuando lo apruebes</b></div>
+   <div class="acc"><span>📜 Qué hizo paso a paso (5)</span><span>›</span></div>
+   <div class="acc"><span>💬 Hablarle ahora</span><span>›</span></div>
+  </div>
+ </div>
+</div>
+</body></html>
