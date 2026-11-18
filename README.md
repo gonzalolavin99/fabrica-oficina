@@ -10,3 +10,7 @@ Panel web (PWA) para vigilar y dirigir la fábrica de agentes de IA que trabaja 
 La explicación de cómo funciona todo está en la pestaña «Cómo funciona» de la propia oficina.
 
 - `docs/Fabrica-como-funciona.pdf` (y su fuente `docs/como-funciona.html`): explicación completa para leer y compartir.
+
+## Licencia
+
+MIT. Ver [LICENSE](LICENSE).
