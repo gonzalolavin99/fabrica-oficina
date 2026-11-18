@@ -145,6 +145,7 @@ async function load() {
       for (const p of prs.slice(0, 4)) {
         const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => isMine(c) && /VEREDICTO:/.test(c.body || ''));
         if (rev) p.veredicto = ((rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '').trim();
+        try { const full = await gh(`${R.name}/pulls/${p.n}`); p.conflicto = full.mergeable_state === 'dirty'; } catch (e) {}
       }
       const slim = i => ({n: i.number, title: i.title, created: i.created_at, at: i.updated_at, prio: prioOf(i), comments: i.comments, body: (i.body || '').slice(0, 2500), ultimo: i._ultimo || null});
       let porResponder = 0;
@@ -261,7 +262,7 @@ function render() {
   const rows = [];
   for (const Rx of REPOS) {
     const dx = state.repos[Rx.name]; if (!dx) continue;
-    for (const p of dx.prs) if (p.veredicto && !/DEVOLVER/.test(p.veredicto)) rows.push({R: Rx, p, tipo: 'pr'});
+    for (const p of dx.prs) if (p.veredicto && !/DEVOLVER/.test(p.veredicto) && !p.conflicto) rows.push({R: Rx, p, tipo: 'pr'});
     for (const p of dx.props) rows.push({R: Rx, p, tipo: 'prop'});
     for (const p of dx.ideas) if (p.ultimo === 'equipo') rows.push({R: Rx, p, tipo: 'idea'});
   }
@@ -302,7 +303,7 @@ const pasos = f => `<div class="steps">${FASES.map((_, k) => `<i class="${k < f 
 function fases(R) {
   const d = dOf(R), out = [], prOf = n => d.prs.find(p => p.issue === n), ronda = proximaRonda(R);
   for (const i of d.running) if (!prOf(i.n)) out.push({i, f: 2, q: 'Sasuke programando'});
-  for (const p of d.prs) { const dev = /DEVOLVER/.test(p.veredicto || ''); out.push({i: {n: p.issue || p.n, title: p.title, created: p.created}, f: p.veredicto && !dev ? 4 : dev ? 2 : 3, q: dev ? 'Madara la devolvió: se corrige · ' + ronda : p.veredicto ? 'Te toca fusionar' : `Madara revisa · ${ronda}`, pr: p}); }
+  for (const p of d.prs) { const dev = /DEVOLVER/.test(p.veredicto || '') || p.conflicto; out.push({i: {n: p.issue || p.n, title: p.title, created: p.created}, f: p.veredicto && !dev ? 4 : dev ? 2 : 3, q: p.conflicto ? 'Choca con otro cambio ya fusionado: Sasuke lo ajusta · ' + ronda : dev ? 'Madara la devolvió: se corrige · ' + ronda : p.veredicto ? 'Te toca fusionar' : `Madara revisa · ${ronda}`, pr: p}); }
   for (const i of d.planned) out.push({i, f: 2, q: `Sasuke programa · ${ronda}`});
   for (const i of d.planificando) out.push({i, f: 1, q: 'Itachi escribe el plan ahora'});
   for (const i of d.queue) if (!d.planificando.some(x => x.n === i.n)) out.push({i, f: 1, q: `Itachi planifica · ${ronda}`});

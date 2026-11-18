@@ -58,6 +58,7 @@ PUESTO EXPLORADOR — model: "sonnet" — solo propone, no toca código:
 Revisa tú mismo, sin lanzar subagentes, y repite este ciclo mientras haya algo que hacer:
  1) ¿Gonzalo espera respuesta? (issues `fabrica:idea`, `fabrica:propuesta` o `fabrica:aprobada` cuyo último comentario es de Gonzalo en persona, o ideas sin ningún comentario) → lanza el PUESTO CONSEJERO.
  2) ¿Hay un PR abierto de la fábrica (rama `fabrica/...`) sin VEREDICTO del Revisor posterior a su último commit? → lanza el PUESTO REVISOR sobre el más antiguo.
+ 2a) ¿Hay un PR de la fábrica con conflicto con la rama por defecto (`gh api repos/gonzalolavin99/{{REPO}}/pulls/<n> --jq .mergeable_state` da "dirty")? → lanza el PUESTO DEV: trae la rama por defecto a la rama del PR (merge, nunca force-push), resuelve conservando ambos cambios y hace push; luego el Revisor vuelve a revisar.
  2b) ¿Hay un issue con `fabrica:corregir` (Madara se lo devolvió a Sasuke)? → lanza el PUESTO DEV sobre él antes que cualquier tarea nueva.
  3) ¿Hay un issue con `fabrica:planificada` sin PR y sin `fabrica:en-curso`? → lanza el PUESTO DEV sobre el más antiguo (por la fecha en que recibió `fabrica:planificada`).
  4) ¿Hay un issue con `fabrica:aprobada` sin `fabrica:planificada` ni `fabrica:planificando` (esta última la pone Itachi instantáneo mientras planifica; no lo toques) (aprobación de Gonzalo en persona, ver QUIÉN ES QUIÉN) y que no esté esperando una respuesta de Gonzalo? → lanza el PUESTO ARQUITECTO sobre el más antiguo.
