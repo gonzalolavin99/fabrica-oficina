@@ -13,7 +13,7 @@ Un equipo de agentes de IA (sesiones de Claude Code en la nube) que trabaja solo
 | Pieza | Qué es | Dónde vive |
 |---|---|---|
 | **Reloj** | Tareas programadas que despiertan al equipo | Nube de Claude (tareas programadas). Mi PC puede estar apagado |
-| **Sede del proyecto** (despachador) | Una sesión de Claude Code permanente por proyecto, con acceso solo a ese repo. Corre con Sonnet (barato). No hace el trabajo: revisa qué toca y lanza al puesto que corresponde | Nube de Claude. Hierro y Ceniza: `session_01RhVe325NPiEieaw8vXNcFL` |
+| **Sede del proyecto** (despachador) | Una sesión de Claude Code permanente por proyecto, con acceso solo a ese repo. Corre con Sonnet (barato). No hace el trabajo: revisa qué toca y lanza al puesto que corresponde | Nube de Claude. Hierro y Ceniza: `session_01RhVe32ef89MmQyhjtWifqK` |
 | **Puestos** | Subagentes que la sede crea para cada trabajo, cada uno con su modelo. Nacen, trabajan y desaparecen, así no acumulan memoria ni costo | Dentro de la sede |
 | **GitHub** | La oficina real: tareas, conversaciones, planes, cambios, revisiones y memoria. Todo queda escrito y auditable | Cada repo de proyecto |
 | **Itachi instantáneo** | GitHub Action que responde mis ideas y mensajes en 1-2 minutos y escribe el plan apenas apruebo | `.github/workflows/fabrica-instantaneo.yml` de cada proyecto |
@@ -92,7 +92,7 @@ Shisui propone → Gonzalo aprueba → Itachi planifica → Sasuke implementa �
 | Qué | Cuándo |
 |---|---|
 | Itachi instantáneo (ideas, mensajes, plan al aprobar) | Al instante, 1-2 minutos |
-| **Ronda de trabajo** (Revisor → Dev → Arquitecto → respuestas) | Cada hora, al minuto :42. Sigue sin parar mientras haya trabajo en la cadena |
+| **Ronda de trabajo** (Revisor → Dev → Arquitecto → respuestas) | Cada hora, al minuto :44. Sigue sin parar mientras haya trabajo en la cadena |
 | Explorador | Todos los días a las 04:43 |
 | Seguridad | Domingos 02:12 |
 | Retro | Domingos 17:38 |
