@@ -304,9 +304,9 @@ function fases(R) {
   const d = dOf(R), out = [], prOf = n => d.prs.find(p => p.issue === n), ronda = proximaRonda(R);
   for (const i of d.running) if (!prOf(i.n)) out.push({i, f: 2, q: 'Sasuke programando'});
   for (const p of d.prs) { const dev = /DEVOLVER/.test(p.veredicto || '') || p.conflicto; out.push({i: {n: p.issue || p.n, title: p.title, created: p.created}, f: p.veredicto && !dev ? 4 : (dev || p.draft) ? 2 : 3, q: p.draft && !p.veredicto ? 'Sasuke lo prueba en la nube y corrige' : p.conflicto ? 'Choca con otro cambio ya fusionado: Sasuke lo ajusta · ' + ronda : dev ? 'Madara la devolvió: se corrige · ' + ronda : p.veredicto ? 'Te toca fusionar' : `Madara revisa · ${ronda}`, pr: p}); }
-  for (const i of d.planned) out.push({i, f: 2, q: `Sasuke programa · ${ronda}`});
-  for (const i of d.planificando) out.push({i, f: 1, q: 'Itachi escribe el plan ahora'});
-  for (const i of d.queue) if (!d.planificando.some(x => x.n === i.n)) out.push({i, f: 1, q: `Itachi planifica · ${ronda}`});
+  for (const i of d.planned) if (!prOf(i.n)) out.push({i, f: 2, q: `Sasuke programa · ${ronda}`});
+  for (const i of d.planificando) if (!prOf(i.n)) out.push({i, f: 1, q: 'Itachi escribe el plan ahora'});
+  for (const i of d.queue) if (!prOf(i.n) && !d.planificando.some(x => x.n === i.n)) out.push({i, f: 1, q: `Itachi planifica · ${ronda}`});
   return out.sort((a, b) => b.f - a.f || new Date(a.i.created) - new Date(b.i.created));
 }
 function enMarchaHTML(R, T) {
@@ -350,7 +350,8 @@ async function openTask(repo, n, kind) {
     const fase = fases(R).find(o => pr ? (o.pr && o.pr.n === +n) : o.i.n === +n);
     const quien = rev ? `<div class="quote"><b>Madara:</b> ${esc(corta(primerParrafo(rev.body).replace(/VEREDICTO:\s*/, ''), 200))}</div>` : opin ? `<div class="quote"><b>Itachi:</b> ${esc(corta(primerParrafo(opin.body), 200))}</div>` : '';
     const diff = files ? acordeon('🧩', `Cambios en ${files.length} archivo${files.length === 1 ? '' : 's'}`, files.map(f => `<details class="diff"><summary><code>${esc(f.filename)}</code> <span class="add">+${f.additions}</span> <span class="del">−${f.deletions}</span></summary><pre>${(f.patch || '(sin vista previa)').split('\n').slice(0, 300).map(l => `<span class="${l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : l.startsWith('@@') ? 'hunk' : ''}">${esc(l)}</span>`).join('\n')}</pre></details>`).join('')) : '';
-    const foot = pr ? `<button class="b p" data-act="fusionar" data-repo="${repo}" data-n="${n}">${R.despliega ? 'Fusionar y desplegar' : 'Fusionar'}</button><button class="b" data-chat="${repo}/${n}/pr">Preguntar</button>`
+    const prSt = pr ? (dOf(R).prs.find(x => x.n === +n) || {}) : {};
+    const foot = pr && (prSt.conflicto || prSt.draft || /DEVOLVER/.test(prSt.veredicto || '')) ? `<div class="ok-msg" style="flex:1;margin:0">${prSt.conflicto ? 'Choca con otro cambio ya fusionado: Sasuke lo ajusta y vuelve a pasar por Madara.' : prSt.draft ? 'Sasuke todavía lo está probando.' : 'Madara lo devolvió: se está corrigiendo.'}</div>` : pr ? `<button class="b p" data-act="fusionar" data-repo="${repo}" data-n="${n}">${R.despliega ? 'Fusionar y desplegar' : 'Fusionar'}</button><button class="b" data-chat="${repo}/${n}/pr">Preguntar</button>`
       : isProp ? `<button class="b p" data-act="aprobar" data-repo="${repo}" data-n="${n}">Aprobar</button><button class="b" data-chat="${repo}/${n}">Preguntar</button><button class="b g" data-act="rechazar" data-repo="${repo}" data-n="${n}">Rechazar</button>`
       : `<button class="b" data-chat="${repo}/${n}${pr ? '/pr' : ''}">💬 Chat (solo si quieres cambiar algo)</button>${isIdea ? `<button class="b g" data-act="cerrar" data-repo="${repo}" data-n="${n}">Cerrar idea</button>` : ''}`;
     view({title: '', right: prio ? `<span class="tag ${prio}">${prio.toUpperCase()}</span>` : '', body: `
