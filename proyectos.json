@@ -6,7 +6,7 @@
       "nombre": "Hierro y Ceniza",
       "color": "#c0503a",
       "estado": "listo",
-      "session": "session_01RhVe325NPiEieaw8vXNcFL",
+      "session": "session_01RhVe32ef89MmQyhjtWifqK",
       "revisor": "Sonnet",
       "despliega": false,
       "turnos": {
@@ -24,7 +24,7 @@
         ]
       },
       "turnos_encendidos": true,
-      "ronda_min": 42,
+      "ronda_min": 44,
       "instantaneo": true
     },
     {
