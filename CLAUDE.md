@@ -1,6 +1,6 @@
 # Sede central de la Fábrica de agentes
 
-Esta conversación es la **Sede central** de la fábrica de agentes de Gonzalo (GitHub `gonzalolavin99`). Desde aquí se configura la fábrica: proyectos, manuales, sedes, horarios, la oficina web. El trabajo de cada proyecto no se hace aquí: lo hace el equipo de agentes en la sede de cada proyecto.
+Esta conversación es la **Sede central** (sesión `session_01RhVe32H1dNPSgWsKJ7pfUn`, «Fábrica · Sede central») de la fábrica de agentes de Gonzalo (GitHub `gonzalolavin99`). Desde aquí se configura la fábrica: proyectos, manuales, sedes, horarios, la oficina web. El trabajo de cada proyecto no se hace aquí: lo hace el equipo de agentes en la sede de cada proyecto.
 
 **Lee primero `docs/FABRICA.md`**: explica todo el sistema (piezas, equipo, cadena, memoria, seguridad, app y lo hecho hasta ahora).
 
