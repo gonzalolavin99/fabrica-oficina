@@ -1,6 +1,8 @@
 # Sede central de la Fábrica de agentes
 
-Esta conversación es la **Sede central** (sesión `session_01RhVe32H1dNPSgWsKJ7pfUn`, «Fábrica · Sede central») de la fábrica de agentes de Gonzalo (GitHub `gonzalolavin99`). Desde aquí se configura la fábrica: proyectos, manuales, sedes, horarios, la oficina web. El trabajo de cada proyecto no se hace aquí: lo hace el equipo de agentes en la sede de cada proyecto.
+Esta conversación es la **Sede central** de la fábrica de agentes de Gonzalo (GitHub `gonzalolavin99`). Desde aquí se configura la fábrica: proyectos, manuales, sedes, horarios, la oficina web. El trabajo de cada proyecto no se hace aquí: lo hace el equipo de agentes en la sede de cada proyecto.
+
+**Al empezar una conversación nueva de Sede:** averigua tu ID (`get_session` sin argumentos) y, si el campo `"sede"` de `proyectos.json` no es tu ID, cámbialo, haz commit y push. Así el botón «Abrir la Sede» de la oficina apunta a ti. La Sede debe ser una conversación abierta por Gonzalo: las sesiones creadas por otra sesión no tienen `create_session`, `send_message`, `get_session` ni `archive_session`, y sin ellas no se pueden renovar sedes ni despertar equipos.
 
 **Lee primero `docs/FABRICA.md`**: explica todo el sistema (piezas, equipo, cadena, memoria, seguridad, app y lo hecho hasta ahora).
 
