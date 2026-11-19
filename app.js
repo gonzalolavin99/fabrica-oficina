@@ -141,7 +141,7 @@ async function load() {
         for (const c of cs) { if (!isMine(c)) continue; const m = (c.body || '').match(/<!--\s*fabrica-estado:(\w+)\s*-->/); if (m) estados[m[1]] = {...parseEstado(c.body), updated: c.updated_at}; }
       }
       const prs = pulls.filter(p => p.head.ref.startsWith('fabrica/') && isMine(p) && p.head.repo && p.head.repo.full_name === `${OWNER}/${R.name}`)
-        .map(p => ({n: p.number, title: p.title, created: p.created_at, at: p.updated_at, prio: '', veredicto: '', pr: true, issue: +((p.head.ref.match(/issue-(\d+)/) || [])[1] || 0)}));
+        .map(p => ({n: p.number, title: p.title, created: p.created_at, at: p.updated_at, prio: '', veredicto: '', pr: true, draft: !!p.draft, issue: +((p.head.ref.match(/issue-(\d+)/) || [])[1] || 0)}));
       for (const p of prs.slice(0, 4)) {
         const rev = (await gh(`${R.name}/issues/${p.n}/comments?per_page=100`)).reverse().find(c => isMine(c) && /VEREDICTO:/.test(c.body || ''));
         if (rev) p.veredicto = ((rev.body.match(/VEREDICTO:\s*([A-ZÁÉÍÓÚÑ ]+)/) || [])[1] || '').trim();
@@ -303,7 +303,7 @@ const pasos = f => `<div class="steps">${FASES.map((_, k) => `<i class="${k < f 
 function fases(R) {
   const d = dOf(R), out = [], prOf = n => d.prs.find(p => p.issue === n), ronda = proximaRonda(R);
   for (const i of d.running) if (!prOf(i.n)) out.push({i, f: 2, q: 'Sasuke programando'});
-  for (const p of d.prs) { const dev = /DEVOLVER/.test(p.veredicto || '') || p.conflicto; out.push({i: {n: p.issue || p.n, title: p.title, created: p.created}, f: p.veredicto && !dev ? 4 : dev ? 2 : 3, q: p.conflicto ? 'Choca con otro cambio ya fusionado: Sasuke lo ajusta · ' + ronda : dev ? 'Madara la devolvió: se corrige · ' + ronda : p.veredicto ? 'Te toca fusionar' : `Madara revisa · ${ronda}`, pr: p}); }
+  for (const p of d.prs) { const dev = /DEVOLVER/.test(p.veredicto || '') || p.conflicto; out.push({i: {n: p.issue || p.n, title: p.title, created: p.created}, f: p.veredicto && !dev ? 4 : (dev || p.draft) ? 2 : 3, q: p.draft && !p.veredicto ? 'Sasuke lo prueba en la nube y corrige' : p.conflicto ? 'Choca con otro cambio ya fusionado: Sasuke lo ajusta · ' + ronda : dev ? 'Madara la devolvió: se corrige · ' + ronda : p.veredicto ? 'Te toca fusionar' : `Madara revisa · ${ronda}`, pr: p}); }
   for (const i of d.planned) out.push({i, f: 2, q: `Sasuke programa · ${ronda}`});
   for (const i of d.planificando) out.push({i, f: 1, q: 'Itachi escribe el plan ahora'});
   for (const i of d.queue) if (!d.planificando.some(x => x.n === i.n)) out.push({i, f: 1, q: `Itachi planifica · ${ronda}`});
